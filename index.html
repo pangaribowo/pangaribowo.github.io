@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fatahillah Alif Pangaribowo — Object Detection Researcher & Software Developer</title>
+  <meta name="description" content="Portofolio Fatahillah Alif Pangaribowo — Object Detection Research Assistant di ITDA Yogyakarta. Web developer, Python & machine learning enthusiast, Linux tinkerer." />
+  <meta property="og:title" content="Fatahillah Alif Pangaribowo" />
+  <meta property="og:description" content="Object Detection Researcher · Software Developer · Yogyakarta, Indonesia" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://pangaribowo.github.io/" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236d5cff'/%3E%3Cstop offset='1' stop-color='%2338d9f5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%230b0f1e'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='url(%23g)' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='7' fill='url(%23g)'/%3E%3Cellipse cx='32' cy='32' rx='27' ry='9' fill='none' stroke='url(%23g)' stroke-width='1.6' opacity='.7' transform='rotate(-24 32 32)'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060913;
+      --bg-2: #0b0f1e;
+      --panel: rgba(255, 255, 255, 0.035);
+      --panel-border: rgba(148, 163, 255, 0.14);
+      --text: #e6eaf6;
+      --muted: #9aa4c0;
+      --accent: #6d5cff;
+      --accent-2: #38d9f5;
+      --accent-3: #ff6da9;
+      --radius: 16px;
+      --max: 1120px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+    ::selection { background: rgba(109, 92, 255, .35); }
+
+    /* ---------- background layers ---------- */
+    #stars {
+      position: fixed; inset: 0; z-index: -2; display: block;
+    }
+    .aurora {
+      position: fixed; inset: 0; z-index: -3;
+      background:
+        radial-gradient(ellipse 60% 45% at 15% 10%, rgba(109, 92, 255, .20), transparent 65%),
+        radial-gradient(ellipse 55% 40% at 85% 20%, rgba(56, 217, 245, .14), transparent 65%),
+        radial-gradient(ellipse 50% 45% at 50% 95%, rgba(255, 109, 169, .10), transparent 65%),
+        var(--bg);
+    }
+
+    /* ---------- layout helpers ---------- */
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    section { padding: 110px 0 40px; }
+    .eyebrow {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .78rem; letter-spacing: .22em; text-transform: uppercase;
+      color: var(--accent-2); display: inline-flex; align-items: center; gap: 10px;
+    }
+    .eyebrow::before { content: ''; width: 34px; height: 1px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(1.8rem, 3.4vw, 2.6rem);
+      margin: 10px 0 34px; letter-spacing: -0.02em;
+    }
+
+    /* ---------- reveal animation ---------- */
+    .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s cubic-bezier(.19,1,.22,1); }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* ---------- navbar ---------- */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+      backdrop-filter: blur(14px);
+      background: rgba(6, 9, 19, .72);
+      border-bottom: 1px solid rgba(148, 163, 255, .1);
+    }
+    .nav-in {
+      max-width: var(--max); margin: 0 auto; padding: 14px 24px;
+      display: flex; align-items: center; gap: 20px;
+    }
+    .brand {
+      font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 1.05rem;
+      text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 10px;
+    }
+    .brand .dot {
+      width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      font-size: .8rem; color: #fff; letter-spacing: .02em;
+      box-shadow: 0 0 18px rgba(109, 92, 255, .45);
+    }
+    .nav-links { margin-left: auto; display: flex; gap: 4px; list-style: none; }
+    .nav-links a {
+      text-decoration: none; color: var(--muted); font-size: .9rem; font-weight: 500;
+      padding: 8px 13px; border-radius: 9px; transition: color .2s, background .2s;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(148, 163, 255, .1); }
+    .lang-toggle {
+      margin-left: 8px; border: 1px solid var(--panel-border); background: var(--panel);
+      color: var(--text); border-radius: 999px; padding: 7px 14px; cursor: pointer;
+      font-family: 'JetBrains Mono', monospace; font-size: .75rem; letter-spacing: .08em;
+      display: flex; gap: 6px; align-items: center; transition: border-color .2s;
+    }
+    .lang-toggle:hover { border-color: var(--accent-2); }
+    .lang-toggle span { color: var(--muted); transition: color .2s; }
+    .lang-toggle span.active { color: var(--accent-2); font-weight: 600; }
+    .burger { display: none; margin-left: auto; background: none; border: 0; color: var(--text); cursor: pointer; padding: 6px; }
+    @media (max-width: 860px) {
+      .nav-links {
+        position: fixed; top: 60px; right: 16px; flex-direction: column;
+        background: rgba(11, 15, 30, .97); border: 1px solid var(--panel-border);
+        padding: 14px; border-radius: 14px; text-align: left;
+        box-shadow: 0 24px 60px rgba(0,0,0,.5);
+        transform: translateY(-12px); opacity: 0; pointer-events: none;
+        transition: opacity .25s, transform .25s;
+      }
+      .nav-links.open { transform: none; opacity: 1; pointer-events: auto; }
+      .burger { display: block; }
+      .lang-toggle { margin-left: 0; }
+    }
+
+    /* ---------- hero ---------- */
+    .hero {
+      min-height: 100svh; display: flex; align-items: center;
+      padding: 120px 0 60px; position: relative;
+    }
+    .hero-grid {
+      display: grid; grid-template-columns: 1.35fr .9fr; gap: 48px; align-items: center; width: 100%;
+    }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; text-align: center; } .hero-avatar-box { order: -1; margin: 0 auto; } .hero-actions, .hero-pills { justify-content: center; } }
+    .hero h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.4rem, 5.5vw, 4.1rem);
+      line-height: 1.06; letter-spacing: -0.03em; margin: 18px 0 14px;
+    }
+    .grad {
+      background: linear-gradient(92deg, #a99bff 0%, var(--accent-2) 55%, #7ef0c9 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .role-line {
+      font-family: 'JetBrains Mono', monospace; font-size: clamp(.9rem, 1.6vw, 1.05rem);
+      color: var(--muted); min-height: 1.8em; margin-bottom: 22px;
+    }
+    .role-line .cursor { color: var(--accent-2); animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .hero p.lead { color: var(--muted); max-width: 56ch; font-size: 1.02rem; }
+    .hero-actions { display: flex; gap: 14px; margin-top: 30px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 9px; text-decoration: none;
+      padding: 13px 24px; border-radius: 12px; font-weight: 600; font-size: .94rem;
+      transition: transform .2s, box-shadow .25s, border-color .2s;
+    }
+    .btn:active { transform: translateY(1px) scale(.99); }
+    .btn-primary {
+      color: #0b0f1e; background: linear-gradient(120deg, var(--accent-2), #7ef0c9);
+      box-shadow: 0 8px 30px rgba(56, 217, 245, .28);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(56, 217, 245, .4); }
+    .btn-ghost { color: var(--text); border: 1px solid var(--panel-border); background: var(--panel); }
+    .btn-ghost:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .hero-pills { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+    .pill {
+      font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: var(--muted);
+      border: 1px solid var(--panel-border); background: var(--panel);
+      padding: 6px 12px; border-radius: 999px; display: inline-flex; gap: 7px; align-items: center;
+    }
+    .pill svg { width: 13px; height: 13px; stroke: var(--accent-2); }
+    .hero-avatar-box { position: relative; width: min(320px, 78vw); aspect-ratio: 1; }
+    .hero-avatar-box .ring {
+      position: absolute; inset: -9%; border-radius: 50%;
+      background: conic-gradient(from 0deg, transparent 8%, var(--accent) 22%, transparent 32%, transparent 58%, var(--accent-2) 74%, transparent 86%);
+      animation: spin 14s linear infinite; filter: blur(.4px);
+      -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+              mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    }
+    .hero-avatar-box .ring2 {
+      position: absolute; inset: -17%; border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 255, .22); animation: spin 40s linear infinite reverse;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hero-avatar-box img {
+      width: 100%; height: 100%; border-radius: 50%; object-fit: cover;
+      border: 3px solid rgba(148, 163, 255, .28);
+      box-shadow: 0 24px 80px rgba(109, 92, 255, .35);
+      background: var(--bg-2);
+    }
+    .badge-float {
+      position: absolute; background: rgba(11, 15, 30, .92); border: 1px solid var(--panel-border);
+      backdrop-filter: blur(8px); padding: 10px 14px; border-radius: 13px; font-size: .78rem;
+      display: flex; gap: 9px; align-items: center; box-shadow: 0 12px 32px rgba(0,0,0,.4);
+      animation: floaty 5.5s ease-in-out infinite;
+    }
+    .badge-float b { display: block; font-size: .82rem; }
+    .badge-float small { color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: .66rem; }
+    .badge-float .ico {
+      width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+      background: linear-gradient(135deg, rgba(109,92,255,.25), rgba(56,217,245,.25));
+    }
+    .badge-float .ico svg { width: 17px; height: 17px; stroke: var(--accent-2); }
+    .bf1 { bottom: 6%; left: -14%; }
+    .bf2 { top: 4%; right: -12%; animation-delay: -2.6s; }
+    @media (max-width: 900px) { .bf1 { left: 0; } .bf2 { right: 0; } }
+    @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-11px); } }
+    .scroll-hint {
+      position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%);
+      color: var(--muted); font-size: .72rem; letter-spacing: .3em; text-transform: uppercase;
+      font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; align-items: center; gap: 10px;
+    }
+    .scroll-hint::after {
+      content: ''; width: 1px; height: 44px;
+      background: linear-gradient(var(--accent-2), transparent); animation: drip 1.8s ease-in-out infinite;
+    }
+    @keyframes drip { 0% { transform: scaleY(0); transform-origin: top; } 55% { transform: scaleY(1); transform-origin: top; } 56% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
+
+    /* ---------- stats strip ---------- */
+    .stats {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 30px 0 0;
+    }
+    @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    .stat {
+      border: 1px solid var(--panel-border); background: var(--panel); border-radius: var(--radius);
+      padding: 20px 18px; text-align: center; transition: transform .25s, border-color .25s;
+    }
+    .stat:hover { transform: translateY(-4px); border-color: rgba(56,217,245,.4); }
+    .stat b {
+      font-family: 'Space Grotesk', sans-serif; font-size: 1.9rem; line-height: 1;
+      background: linear-gradient(120deg, #a99bff, var(--accent-2)); -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .stat span { display: block; margin-top: 8px; color: var(--muted); font-size: .8rem; }
+
+    /* ---------- about ---------- */
+    .about-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 40px; align-items: start; }
+    @media (max-width: 860px) { .about-grid { grid-template-columns: 1fr; } }
+    .about-grid p { color: var(--muted); margin-bottom: 16px; }
+    .about-grid p strong { color: var(--text); font-weight: 600; }
+    .terminal {
+      border: 1px solid var(--panel-border); border-radius: var(--radius);
+      background: rgba(8, 11, 22, .8); overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+      border-bottom: 1px solid var(--panel-border); background: rgba(255,255,255,.02);
+    }
+    .terminal-bar i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+    .terminal-bar i:nth-child(1) { background: #ff5f57; }
+    .terminal-bar i:nth-child(2) { background: #febc2e; }
+    .terminal-bar i:nth-child(3) { background: #28c840; }
+    .terminal-bar span { margin-left: 8px; font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: var(--muted); }
+    .terminal pre {
+      padding: 20px; font-family: 'JetBrains Mono', monospace; font-size: .8rem; line-height: 1.8;
+      color: #b8c2e0; overflow-x: auto;
+    }
+    .tk { color: var(--accent-2); }
+    .tv { color: #7ef0c9; }
+    .tc { color: #5c6a90; }
+
+    /* ---------- skills ---------- */
+    .skill-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+    .skill-card {
+      border: 1px solid var(--panel-border); border-radius: var(--radius); background: var(--panel);
+      padding: 24px; transition: transform .25s, border-color .25s, box-shadow .25s;
+    }
+    .skill-card:hover { transform: translateY(-5px); border-color: rgba(109,92,255,.45); box-shadow: 0 18px 44px rgba(109,92,255,.14); }
+    .skill-card .ico {
+      width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 16px;
+      background: linear-gradient(135deg, rgba(109,92,255,.22), rgba(56,217,245,.22));
+    }
+    .skill-card .ico svg { width: 21px; height: 21px; stroke: var(--accent-2); }
+    .skill-card h3 { font-family: 'Space Grotesk', sans-serif; font-size: 1.06rem; margin-bottom: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      font-size: .76rem; color: var(--muted); padding: 5px 11px; border-radius: 999px;
+      border: 1px solid var(--panel-border); background: rgba(255,255,255,.02);
+      transition: color .2s, border-color .2s;
+    }
+    .chip:hover { color: var(--text); border-color: var(--accent-2); }
+
+    /* ---------- experience ---------- */
+    .timeline { position: relative; margin-left: 10px; padding-left: 34px; }
+    .timeline::before {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 2px;
+      background: linear-gradient(var(--accent), var(--accent-2), transparent);
+      border-radius: 2px;
+    }
+    .t-item { position: relative; padding-bottom: 34px; }
+    .t-item:last-child { padding-bottom: 0; }
+    .t-item::before {
+      content: ''; position: absolute; left: -41px; top: 5px; width: 15px; height: 15px; border-radius: 50%;
+      background: var(--bg); border: 3px solid var(--accent-2); box-shadow: 0 0 14px rgba(56,217,245,.55);
+    }
+    .t-item .t-date {
+      font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: var(--accent-2);
+      letter-spacing: .14em; text-transform: uppercase;
+    }
+    .t-item h3 { font-family: 'Space Grotesk', sans-serif; font-size: 1.16rem; margin: 5px 0 3px; }
+    .t-item .t-org { color: var(--muted); font-size: .92rem; margin-bottom: 9px; }
+    .t-item p { color: var(--muted); font-size: .94rem; max-width: 68ch; }
+    .t-tag {
+      display: inline-block; margin-top: 10px; font-size: .7rem; font-family: 'JetBrains Mono', monospace;
+      padding: 4px 11px; border-radius: 999px; letter-spacing: .08em;
+      border: 1px solid rgba(126, 240, 201, .3); color: #7ef0c9; background: rgba(126,240,201,.06);
+    }
+    .t-tag.alt { border-color: rgba(109,92,255,.4); color: #b3a8ff; background: rgba(109,92,255,.08); }
+
+    /* ---------- projects ---------- */
+    .proj-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+    .proj {
+      position: relative; border: 1px solid var(--panel-border); border-radius: var(--radius);
+      background: var(--panel); padding: 26px; overflow: hidden;
+      transition: transform .3s cubic-bezier(.19,1,.22,1), border-color .3s, box-shadow .3s;
+      display: flex; flex-direction: column;
+    }
+    .proj::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(109,92,255,.13), transparent 55%);
+      opacity: 0; transition: opacity .3s; pointer-events: none;
+    }
+    .proj:hover { transform: translateY(-7px); border-color: rgba(56,217,245,.42); box-shadow: 0 26px 60px rgba(0,0,0,.4); }
+    .proj:hover::after { opacity: 1; }
+    .proj .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .proj .top svg { width: 24px; height: 24px; stroke: var(--accent-2); }
+    .proj .links { display: flex; gap: 6px; }
+    .proj .links a {
+      color: var(--muted); transition: color .2s, transform .2s; padding: 5px; border-radius: 8px;
+      position: relative; z-index: 2;
+    }
+    .proj .links a:hover { color: var(--accent-2); transform: translateY(-2px); }
+    .proj .links svg { width: 18px; height: 18px; stroke: currentColor; }
+    .proj h3 { font-family: 'Space Grotesk', sans-serif; font-size: 1.1rem; margin-bottom: 9px; }
+    .proj h3 a { color: inherit; text-decoration: none; }
+    .proj h3 a:hover { color: var(--accent-2); }
+    .proj p { color: var(--muted); font-size: .9rem; flex: 1; }
+    .proj .tech { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+    .proj .tech span {
+      font-family: 'JetBrains Mono', monospace; font-size: .66rem; color: var(--accent-2);
+      background: rgba(56,217,245,.07); border: 1px solid rgba(56,217,245,.18);
+      padding: 3px 9px; border-radius: 999px;
+    }
+    .more-proj { margin-top: 26px; }
+    .more-proj details {
+      border: 1px solid var(--panel-border); border-radius: var(--radius); background: var(--panel); padding: 18px 22px;
+    }
+    .more-proj summary {
+      cursor: pointer; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: .98rem;
+      color: var(--text); list-style: none; display: flex; align-items: center; gap: 10px;
+    }
+    .more-proj summary::before { content: '+'; color: var(--accent-2); font-size: 1.2rem; transition: transform .2s; }
+    .more-proj details[open] summary::before { transform: rotate(45deg); }
+    .more-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 18px; }
+    .more-list a {
+      display: flex; gap: 10px; align-items: flex-start; text-decoration: none; color: var(--text);
+      border: 1px solid rgba(148,163,255,.1); border-radius: 12px; padding: 13px 15px;
+      transition: border-color .2s, background .2s; font-size: .88rem;
+    }
+    .more-list a:hover { border-color: var(--accent); background: rgba(109,92,255,.06); }
+    .more-list svg { width: 16px; height: 16px; stroke: var(--accent-2); flex-shrink: 0; margin-top: 3px; }
+    .more-list small { display: block; color: var(--muted); font-size: .76rem; margin-top: 2px; }
+
+    /* ---------- contact ---------- */
+    .contact-box {
+      border: 1px solid var(--panel-border); border-radius: calc(var(--radius) + 6px);
+      background:
+        radial-gradient(600px 200px at 50% -40px, rgba(109,92,255,.16), transparent 70%),
+        var(--panel);
+      padding: 54px 34px; text-align: center;
+    }
+    .contact-box h2 { margin-bottom: 14px; }
+    .contact-box p { color: var(--muted); max-width: 52ch; margin: 0 auto 30px; }
+    .socials { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .soc {
+      display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text);
+      border: 1px solid var(--panel-border); background: rgba(255,255,255,.03);
+      padding: 13px 22px; border-radius: 12px; font-weight: 600; font-size: .92rem;
+      transition: border-color .2s, transform .2s, box-shadow .25s;
+    }
+    .soc:hover { border-color: var(--accent-2); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(56,217,245,.15); }
+    .soc svg { width: 19px; height: 19px; }
+
+    footer {
+      margin-top: 110px; border-top: 1px solid rgba(148,163,255,.1); padding: 34px 0 42px;
+      text-align: center; color: var(--muted); font-size: .82rem;
+    }
+    footer .mono { font-family: 'JetBrains Mono', monospace; font-size: .72rem; color: #5c6a90; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="aurora"></div>
+  <canvas id="stars"></canvas>
+
+  <!-- ================= NAVBAR ================= -->
+  <nav>
+    <div class="nav-in">
+      <a class="brand" href="#home"><span class="dot">FA</span> pangaribowo</a>
+      <button class="burger" id="burger" aria-label="Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+      </button>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#tentang" data-i18n="nav.about">Tentang</a></li>
+        <li><a href="#keahlian" data-i18n="nav.skills">Keahlian</a></li>
+        <li><a href="#pengalaman" data-i18n="nav.exp">Pengalaman</a></li>
+        <li><a href="#proyek" data-i18n="nav.projects">Proyek</a></li>
+        <li><a href="#kontak" data-i18n="nav.contact">Kontak</a></li>
+      </ul>
+      <button class="lang-toggle" id="langToggle" aria-label="Ganti bahasa">
+        <span data-lang="id" class="active">ID</span>/<span data-lang="en">EN</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= HERO ================= -->
+  <header class="hero" id="home">
+    <div class="wrap hero-grid">
+      <div class="reveal">
+        <span class="eyebrow" data-i18n="hero.eyebrow">Halo, saya</span>
+        <h1>Fatahillah Alif <span class="grad">Pangaribowo</span></h1>
+        <div class="role-line"><span id="typer"></span><span class="cursor">▊</span></div>
+        <p class="lead" data-i18n="hero.lead">Research assistant di bidang object detection — Institut Teknologi Dirgantara Adisutjipto (ITDA) Yogyakarta. Saya membangun aplikasi web, mengeksplor machine learning, dan mengoprek Linux hingga ke kernel-nya.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#proyek">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.1-6.2-4.4-6.2 4.4 2.4-7.1L2 9.4h7.6z"/></svg>
+            <span data-i18n="hero.cta1">Lihat Proyek</span>
+          </a>
+          <a class="btn btn-ghost" href="#kontak" data-i18n="hero.cta2">Hubungi Saya</a>
+        </div>
+        <div class="hero-pills">
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Yogyakarta, Indonesia</span>
+          <span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg><span data-i18n="hero.pill.work">Terbuka untuk kolaborasi</span></span>
+        </div>
+      </div>
+      <div class="hero-avatar-box reveal">
+        <div class="ring2"></div>
+        <div class="ring"></div>
+        <img src="https://avatars.githubusercontent.com/u/156567065?v=4" alt="Foto Fatahillah Alif Pangaribowo" loading="lazy" />
+        <div class="badge-float bf1">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg></span>
+          <span><b>Object Detection</b><small>Computer Vision Research</small></span>
+        </div>
+        <div class="badge-float bf2">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></span>
+          <span><b data-i18n="hero.badge.title">Software Developer</b><small>Web · ML · Linux</small></span>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-hint" data-i18n="hero.scroll">Scroll</div>
+  </header>
+
+  <main>
+    <!-- ================= STATS ================= -->
+    <div class="wrap reveal">
+      <div class="stats">
+        <div class="stat"><b data-count="40">0</b><span data-i18n="stat.repos">Repositori Publik</span></div>
+        <div class="stat"><b data-count="9">0</b><span data-i18n="stat.lang">Bahasa Pemrograman</span></div>
+        <div class="stat"><b>2022</b><span data-i18n="stat.since">Ngoding Sejak</span></div>
+        <div class="stat"><b data-count="17">0</b><span data-i18n="stat.followers">Pengikut GitHub</span></div>
+      </div>
+    </div>
+
+    <!-- ================= ABOUT ================= -->
+    <section id="tentang">
+      <div class="wrap">
+        <div class="about-grid">
+          <div class="reveal">
+            <span class="eyebrow" data-i18n="about.eyebrow">Tentang Saya</span>
+            <h2 data-i18n="about.title">Peneliti deteksi objek yang juga senang membangun perangkat lunak.</h2>
+            <p data-i18n="about.p1">Saya mahasiswa Informatika di <strong>Institut Teknologi Dirgantara Adisutjipto (ITDA)</strong> Yogyakarta — kampus kedirgantaraan di kawasan Lanud Adisutjipto. Saat ini saya bekerja sebagai <strong>Object Detection Research Assistant</strong>, berkutat dengan dataset, anotasi, dan pelatihan model computer vision.</p>
+            <p data-i18n="about.p2">Di luar riset, saya aktif membangun aplikasi web — dari <strong>CodeIgniter 4</strong> dan <strong>React</strong>, sampai bereksperimen dengan <strong>TensorFlow.js</strong> untuk membawa machine learning langsung ke browser. Saya juga penggemar berat Linux: menulis skrip optimasi sistem, menyusun dotfiles, dan men-tweak kernel.</p>
+            <p data-i18n="about.p3">Sebelumnya saya menjadi <strong>IT Executive di Adisutjipto Linux Community</strong>, aktif di <strong>HMF ITDA</strong> (Himpunan Mahasiswa Informatika), serta menempuh pembelajaran melalui <strong>Google Cloud Skills Boost</strong> dan memperoleh pengalaman industri bersama <strong>GMF AeroAsia</strong> dan <strong>Traveloka</strong>.</p>
+          </div>
+          <div class="terminal reveal">
+            <div class="terminal-bar"><i></i><i></i><i></i><span>alif@itda:~$ whoami</span></div>
+            <pre id="aboutTerm"><span class="tc">// profil singkat</span>
+<span class="tk">const</span> alif = {
+  role: <span class="tv">"Object Detection RA"</span>,
+  campus: <span class="tv">"ITDA Yogyakarta"</span>,
+  languages: [<span class="tv">"Python"</span>, <span class="tv">"TypeScript"</span>,
+    <span class="tv">"PHP"</span>, <span class="tv">"Java"</span>, <span class="tv">"Lua"</span>],
+  interests: [
+    <span class="tv">"computer vision"</span>,
+    <span class="tv">"web engineering"</span>,
+    <span class="tv">"linux &amp; sysadmin"</span>,
+    <span class="tv">"space &amp; aviation"</span>
+  ],
+  editor: <span class="tv">"Neovim (AstroNvim)"</span>,
+  os: <span class="tv">"Linux + Windows tuning"</span>,
+  openToWork: <span class="tk">true</span>
+};</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SKILLS ================= -->
+    <section id="keahlian">
+      <div class="wrap">
+        <div class="reveal">
+          <span class="eyebrow" data-i18n="skills.eyebrow">Keahlian</span>
+          <h2 data-i18n="skills.title">Perangkat yang saya pakai sehari-hari.</h2>
+        </div>
+        <div class="skill-groups">
+          <div class="skill-card reveal">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></span>
+            <h3 data-i18n="skills.g1">Bahasa</h3>
+            <div class="chips">
+              <span class="chip">Python</span><span class="chip">JavaScript</span><span class="chip">TypeScript</span>
+              <span class="chip">PHP</span><span class="chip">Java</span><span class="chip">Lua</span>
+              <span class="chip">Shell</span><span class="chip">PowerShell</span><span class="chip">SQL</span>
+            </div>
+          </div>
+          <div class="skill-card reveal">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M2 20h20"/></svg></span>
+            <h3>Web &amp; Frontend</h3>
+            <div class="chips">
+              <span class="chip">CodeIgniter 4</span><span class="chip">React</span><span class="chip">Tailwind CSS</span>
+              <span class="chip">Recharts</span><span class="chip">Node.js</span><span class="chip">Vite</span>
+              <span class="chip">HTML5</span><span class="chip">CSS3</span>
+            </div>
+          </div>
+          <div class="skill-card reveal">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/></svg></span>
+            <h3>AI &amp; Data</h3>
+            <div class="chips">
+              <span class="chip">Object Detection</span><span class="chip">TensorFlow.js</span><span class="chip">scikit-learn</span>
+              <span class="chip">Pandas</span><span class="chip">PostgreSQL</span><span class="chip">Dataset Annotation</span>
+            </div>
+          </div>
+          <div class="skill-card reveal">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg></span>
+            <h3 data-i18n="skills.g4">Sistem &amp; Tools</h3>
+            <div class="chips">
+              <span class="chip">Linux</span><span class="chip">Git &amp; GitHub</span><span class="chip">Neovim</span>
+              <span class="chip">Dotfiles</span><span class="chip">ZRAM tuning</span><span class="chip">Kernel tweaking</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= EXPERIENCE ================= -->
+    <section id="pengalaman">
+      <div class="wrap">
+        <div class="reveal">
+          <span class="eyebrow" data-i18n="exp.eyebrow">Pengalaman</span>
+          <h2 data-i18n="exp.title">Perjalanan sejauh ini.</h2>
+        </div>
+        <div class="timeline">
+          <div class="t-item reveal">
+            <span class="t-date" data-i18n="exp.1.date">2024 — Sekarang</span>
+            <h3>Object Detection Research Assistant</h3>
+            <div class="t-org">ITDA Yogyakarta</div>
+            <p data-i18n="exp.1.desc">Mendukung riset computer vision: menyiapkan dan menganotasi dataset, melatih sekaligus mengevaluasi model deteksi objek, serta mendokumentasikan pipeline eksperimen.</p>
+            <span class="t-tag" data-i18n="exp.1.tag">Riset Aktif</span>
+          </div>
+          <div class="t-item reveal">
+            <span class="t-date" data-i18n="exp.2.date">Kampus &amp; Komunitas</span>
+            <h3>IT Executive — Adisutjipto Linux Community</h3>
+            <div class="t-org">Adisutjipto Linux Community (ALC)</div>
+            <p data-i18n="exp.2.desc">Mengelola kebutuhan TI komunitas Linux: administrasi sistem, dokumentasi, dan berbagi pengetahuan seputar open source dengan anggota komunitas.</p>
+            <span class="t-tag alt">Open Source</span>
+          </div>
+          <div class="t-item reveal">
+            <span class="t-date" data-i18n="exp.3.date">Organisasi</span>
+            <h3>HMF ITDA — Himpunan Mahasiswa Informatika</h3>
+            <div class="t-org">Himpunan Mahasiswa Informatika ITDA</div>
+            <p data-i18n="exp.3.desc">Aktif berorganisasi di himpunan mahasiswa Informatika: kegiatan akademik, pengembangan kompetensi, dan kepanitiaan program kerja.</p>
+            <span class="t-tag alt" data-i18n="exp.3.tag">Kepemimpinan</span>
+          </div>
+          <div class="t-item reveal">
+            <span class="t-date" data-i18n="exp.4.date">Pengembangan Diri</span>
+            <h3>Google Cloud Skills Boost &amp; Program Industri</h3>
+            <div class="t-org">Google Cloud · GMF AeroAsia · Traveloka</div>
+            <p data-i18n="exp.4.desc">Menuntaskan jalur pembelajaran cloud dan mengikuti program pengembangan industri untuk memperkuat fondasi rekayasa perangkat lunak dan cloud computing.</p>
+            <span class="t-tag alt">Cloud &amp; Industry</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PROJECTS ================= -->
+    <section id="proyek">
+      <div class="wrap">
+        <div class="reveal">
+          <span class="eyebrow" data-i18n="proj.eyebrow">Proyek Pilihan</span>
+          <h2 data-i18n="proj.title">Beberapa hal yang pernah saya bangun.</h2>
+        </div>
+        <div class="proj-grid">
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <div class="links">
+                <a href="https://github.com/pangaribowo/codeigniter-mvc-workbench" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://github.com/pangaribowo/codeigniter-mvc-workbench" target="_blank" rel="noopener">CodeIgniter MVC Workbench</a></h3>
+            <p data-i18n="proj.1">Workbench pedagogis interaktif: kurikulum zero-to-hero dan blueprint MVC production-grade untuk CodeIgniter 4.</p>
+            <div class="tech"><span>CodeIgniter 4</span><span>PHP</span><span>MVC</span><span>HTML/CSS</span></div>
+          </article>
+
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <div class="links">
+                <a href="https://github.com/pangaribowo/network-dashboard-ui" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://github.com/pangaribowo/network-dashboard-ui" target="_blank" rel="noopener">Network Dashboard UI</a></h3>
+            <p data-i18n="proj.2">Dashboard monitoring jaringan modern dan responsif — visualisasi data real-time dengan antarmuka yang bersih.</p>
+            <div class="tech"><span>React</span><span>Tailwind CSS</span><span>Recharts</span><span>JavaScript</span></div>
+          </article>
+
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+              <div class="links">
+                <a href="https://oalalif.github.io/milkyway-explorer-pro/" target="_blank" rel="noopener" aria-label="Live Demo"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14L21 3"/></svg></a>
+                <a href="https://github.com/oalalif/milkyway-explorer-pro" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://oalalif.github.io/milkyway-explorer-pro/" target="_blank" rel="noopener">Milkyway Explorer Pro</a></h3>
+            <p data-i18n="proj.3">Simulasi tata surya 3D interaktif — jelajahi planet dan luar angkasa dengan visual yang edukatif dan memukau.</p>
+            <div class="tech"><span>JavaScript</span><span>3D</span><span>WebGL</span></div>
+          </article>
+
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.4-1.2 3.8-2.2 5a8 8 0 0 1-1.8 4.8A3.5 3.5 0 0 1 12 20a3.5 3.5 0 0 1-3-1.2A8 8 0 0 1 7.2 14C6.2 12.8 5 11.4 5 9a7 7 0 0 1 7-7z"/><path d="M9 22h6"/></svg>
+              <div class="links">
+                <a href="https://github.com/oalalif/mlgc" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://github.com/oalalif/mlgc" target="_blank" rel="noopener">MLGC — Skin Classifier</a></h3>
+            <p data-i18n="proj.4">Aplikasi web machine learning untuk mengklasifikasikan kondisi kulit — inference langsung di browser dengan TensorFlow.js.</p>
+            <div class="tech"><span>TensorFlow.js</span><span>Node.js</span><span>Machine Learning</span></div>
+          </article>
+
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <div class="links">
+                <a href="https://github.com/pangaribowo/kpu-election-system" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://github.com/pangaribowo/kpu-election-system" target="_blank" rel="noopener">KPU Election System</a></h3>
+            <p data-i18n="proj.5">Sistem pemungutan suara digital terinspirasi KPU — manajemen pemilih, pemungutan, dan rekapitulasi suara.</p>
+            <div class="tech"><span>TypeScript</span><span>Web App</span></div>
+          </article>
+
+          <article class="proj reveal">
+            <div class="top">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+              <div class="links">
+                <a href="https://github.com/pangaribowo/postgresql-ecommerce-db" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg></a>
+              </div>
+            </div>
+            <h3><a href="https://github.com/pangaribowo/postgresql-ecommerce-db" target="_blank" rel="noopener">PostgreSQL E-commerce DB</a></h3>
+            <p data-i18n="proj.6">Perancangan basis data e-commerce di PostgreSQL — skema relasional ternormalisasi lengkap dengan query-nya.</p>
+            <div class="tech"><span>PostgreSQL</span><span>SQL</span><span>Database Design</span></div>
+          </article>
+        </div>
+
+        <div class="more-proj reveal">
+          <details>
+            <summary data-i18n="proj.more">Proyek lainnya di GitHub</summary>
+            <div class="more-list">
+              <a href="https://github.com/oalalif/SystemOptimizer-ZRAM" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>SystemOptimizer-ZRAM<small data-i18n="proj.m1">Skrip optimasi Linux: ZRAM, CPU, dan cleanup sistem.</small></span>
+              </a>
+              <a href="https://github.com/pangaribowo/thinkpad-windows-kernel-tuning" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>ThinkPad Kernel Tuning<small data-i18n="proj.m2">Tuning kernel Windows di ThinkPad dengan PowerShell.</small></span>
+              </a>
+              <a href="https://github.com/pangaribowo/library-management-system" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Library Management System<small data-i18n="proj.m3">Sistem manajemen perpustakaan berbasis Python.</small></span>
+              </a>
+              <a href="https://github.com/pangaribowo/Rental-Jeep-Kaliurang" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Rental Jeep Kaliurang<small data-i18n="proj.m4">Aplikasi rental jeep wisata Kaliurang dengan Java.</small></span>
+              </a>
+              <a href="https://github.com/oalalif/galaxy-explorer-pro" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Galaxy Explorer Pro<small data-i18n="proj.m5">Eksplorasi galaksi interaktif berbasis web.</small></span>
+              </a>
+              <a href="https://github.com/pangaribowo/dotfiles" target="_blank" rel="noopener">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                <span>Dotfiles &amp; Neovim<small data-i18n="proj.m6">Konfigurasi shell dan Neovim (AstroNvim v4) milik saya.</small></span>
+              </a>
+            </div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= CONTACT ================= -->
+    <section id="kontak">
+      <div class="wrap">
+        <div class="contact-box reveal">
+          <span class="eyebrow" style="justify-content:center; display:inline-flex;"><span data-i18n="contact.eyebrow">Kontak</span></span>
+          <h2 data-i18n="contact.title">Mari terhubung.</h2>
+          <p data-i18n="contact.desc">Tertarik berkolaborasi untuk riset computer vision, proyek web, atau sekadar ngobrol soal teknologi? Jangkau saya melalui kanal berikut — saya senang bertemu orang baru.</p>
+          <div class="socials">
+            <a class="soc" href="https://github.com/pangaribowo" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.53-1.32-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.78 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.43-2.7 5.41-5.27 5.69.41.36.78 1.06.78 2.14 0 1.55-.02 2.79-.02 3.17 0 .31.21.68.8.56A10.52 10.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+              GitHub
+            </a>
+            <a class="soc" href="https://www.linkedin.com/in/fatahillahalif" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05a3.74 3.74 0 0 1 3.37-1.85c3.6 0 4.27 2.37 4.27 5.46zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.55V9h3.57zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0z"/></svg>
+              LinkedIn
+            </a>
+            <a class="soc" href="https://github.com/oalalif" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.1-6.2-4.4-6.2 4.4 2.4-7.1L2 9.4h7.6z"/></svg>
+              GitHub <span style="font-family:'JetBrains Mono',monospace; font-size:.72rem; color:var(--muted);">@oalalif</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <p class="mono">designed &amp; built under the stars — Yogyakarta</p>
+      <p data-i18n="footer.copy">© 2026 Fatahillah Alif Pangaribowo. Dibuat dengan HTML, CSS, dan JavaScript murni.</p>
+    </div>
+  </footer>
+
+  <script>
+    /* ================= Starfield ================= */
+    (function () {
+      const canvas = document.getElementById('stars');
+      const ctx = canvas.getContext('2d');
+      let stars = [], w, h, mouseX = 0.5, mouseY = 0.5;
+      const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function resize() {
+        w = canvas.width = innerWidth * devicePixelRatio;
+        h = canvas.height = innerHeight * devicePixelRatio;
+        canvas.style.width = innerWidth + 'px';
+        canvas.style.height = innerHeight + 'px';
+        const N = Math.min(260, Math.floor(innerWidth * innerHeight / 6500));
+        stars = Array.from({ length: N }, () => ({
+          x: Math.random() * w, y: Math.random() * h,
+          z: Math.random() * 0.8 + 0.2,
+          r: (Math.random() * 1.5 + 0.4) * devicePixelRatio,
+          tw: Math.random() * Math.PI * 2,
+          ts: Math.random() * 0.02 + 0.004
+        }));
+      }
+      addEventListener('resize', resize);
+      addEventListener('pointermove', e => {
+        mouseX = e.clientX / innerWidth; mouseY = e.clientY / innerHeight;
+      });
+      resize();
+
+      function frame() {
+        ctx.clearRect(0, 0, w, h);
+        const dx = (mouseX - 0.5) * 30 * devicePixelRatio;
+        const dy = (mouseY - 0.5) * 30 * devicePixelRatio;
+        for (const s of stars) {
+          s.tw += s.ts;
+          const a = 0.35 + 0.45 * Math.abs(Math.sin(s.tw));
+          ctx.beginPath();
+          ctx.arc(s.x - dx * s.z, s.y - dy * s.z, s.r * s.z + 0.3, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(210, 224, 255,' + a.toFixed(3) + ')';
+          ctx.fill();
+        }
+        if (!REDUCED) requestAnimationFrame(frame);
+      }
+      frame();
+    })();
+
+    /* ================= Reveal on scroll ================= */
+    (function () {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach((e, i) => {
+          if (e.isIntersecting) {
+            setTimeout(() => e.target.classList.add('in'), (i % 4) * 90);
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.12 });
+      document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+    })();
+
+    /* ================= Count-up stats ================= */
+    (function () {
+      const io = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+          if (!e.isIntersecting) return;
+          io.unobserve(e.target);
+          const target = +e.target.dataset.count;
+          const t0 = performance.now();
+          const dur = 1400;
+          (function tick(t) {
+            const p = Math.min(1, (t - t0) / dur);
+            e.target.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))) + (p === 1 ? '+' : '');
+            if (p < 1) requestAnimationFrame(tick);
+          })(t0);
+        });
+      }, { threshold: 0.6 });
+      document.querySelectorAll('[data-count]').forEach(el => io.observe(el));
+    })();
+
+    /* ================= Typing role rotator ================= */
+    const typer = document.getElementById('typer');
+    let ROTATE = [
+      'Object Detection Researcher',
+      'Software Developer',
+      'Machine Learning Enthusiast',
+      'Linux & Kernel Tinkerer'
+    ];
+    (function () {
+      let ri = 0, ci = 0, del = false;
+      const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (REDUCED) { typer.textContent = ROTATE[0]; return; }
+      (function tick() {
+        const word = ROTATE[ri % ROTATE.length];
+        if (!del) {
+          ci++;
+          if (ci >= word.length) { del = true; setTimeout(tick, 1800); return render(word, ci); }
+          return render(word, ci), setTimeout(tick, 65);
+        } else {
+          ci--;
+          if (ci <= 0) { del = false; ri++; return setTimeout(tick, 350); }
+          return render(word, ci), setTimeout(tick, 32);
+        }
+        function render(w, n) { typer.textContent = w.slice(0, n); }
+      })();
+    })();
+
+    /* ================= i18n ================= */
+    const I18N = {
+      id: {
+        'nav.about': 'Tentang', 'nav.skills': 'Keahlian', 'nav.exp': 'Pengalaman',
+        'nav.projects': 'Proyek', 'nav.contact': 'Kontak',
+        'hero.eyebrow': 'Halo, saya',
+        'hero.lead': 'Research assistant di bidang object detection — Institut Teknologi Dirgantara Adisutjipto (ITDA) Yogyakarta. Saya membangun aplikasi web, mengeksplor machine learning, dan mengoprek Linux hingga ke kernel-nya.',
+        'hero.cta1': 'Lihat Proyek', 'hero.cta2': 'Hubungi Saya',
+        'hero.pill.work': 'Terbuka untuk kolaborasi',
+        'hero.badge.title': 'Software Developer',
+        'hero.scroll': 'Scroll',
+        'stat.repos': 'Repositori Publik', 'stat.lang': 'Bahasa Pemrograman',
+        'stat.since': 'Ngoding Sejak', 'stat.followers': 'Pengikut GitHub',
+        'about.eyebrow': 'Tentang Saya',
+        'about.title': 'Peneliti deteksi objek yang juga senang membangun perangkat lunak.',
+        'about.p1': 'Saya mahasiswa Informatika di <strong>Institut Teknologi Dirgantara Adisutjipto (ITDA)</strong> Yogyakarta — kampus kedirgantaraan di kawasan Lanud Adisutjipto. Saat ini saya bekerja sebagai <strong>Object Detection Research Assistant</strong>, berkutat dengan dataset, anotasi, dan pelatihan model computer vision.',
+        'about.p2': 'Di luar riset, saya aktif membangun aplikasi web — dari <strong>CodeIgniter 4</strong> dan <strong>React</strong>, sampai bereksperimen dengan <strong>TensorFlow.js</strong> untuk membawa machine learning langsung ke browser. Saya juga penggemar berat Linux: menulis skrip optimasi sistem, menyusun dotfiles, dan men-tweak kernel.',
+        'about.p3': 'Sebelumnya saya menjadi <strong>IT Executive di Adisutjipto Linux Community</strong>, aktif di <strong>HMF ITDA</strong> (Himpunan Mahasiswa Informatika), serta menempuh pembelajaran melalui <strong>Google Cloud Skills Boost</strong> dan memperoleh pengalaman industri bersama <strong>GMF AeroAsia</strong> dan <strong>Traveloka</strong>.',
+        'skills.eyebrow': 'Keahlian', 'skills.title': 'Perangkat yang saya pakai sehari-hari.',
+        'skills.g1': 'Bahasa', 'skills.g4': 'Sistem &amp; Tools',
+        'exp.eyebrow': 'Pengalaman', 'exp.title': 'Perjalanan sejauh ini.',
+        'exp.1.date': '2024 — Sekarang',
+        'exp.1.desc': 'Mendukung riset computer vision: menyiapkan dan menganotasi dataset, melatih sekaligus mengevaluasi model deteksi objek, serta mendokumentasikan pipeline eksperimen.',
+        'exp.1.tag': 'Riset Aktif',
+        'exp.2.date': 'Kampus &amp; Komunitas',
+        'exp.2.desc': 'Mengelola kebutuhan TI komunitas Linux: administrasi sistem, dokumentasi, dan berbagi pengetahuan seputar open source dengan anggota komunitas.',
+        'exp.3.date': 'Organisasi',
+        'exp.3.desc': 'Aktif berorganisasi di himpunan mahasiswa Informatika: kegiatan akademik, pengembangan kompetensi, dan kepanitiaan program kerja.',
+        'exp.3.tag': 'Kepemimpinan',
+        'exp.4.date': 'Pengembangan Diri',
+        'exp.4.desc': 'Menuntaskan jalur pembelajaran cloud dan mengikuti program pengembangan industri untuk memperkuat fondasi rekayasa perangkat lunak dan cloud computing.',
+        'proj.eyebrow': 'Proyek Pilihan', 'proj.title': 'Beberapa hal yang pernah saya bangun.',
+        'proj.1': 'Workbench pedagogis interaktif: kurikulum zero-to-hero dan blueprint MVC production-grade untuk CodeIgniter 4.',
+        'proj.2': 'Dashboard monitoring jaringan modern dan responsif — visualisasi data real-time dengan antarmuka yang bersih.',
+        'proj.3': 'Simulasi tata surya 3D interaktif — jelajahi planet dan luar angkasa dengan visual yang edukatif dan memukau.',
+        'proj.4': 'Aplikasi web machine learning untuk mengklasifikasikan kondisi kulit — inference langsung di browser dengan TensorFlow.js.',
+        'proj.5': 'Sistem pemungutan suara digital terinspirasi KPU — manajemen pemilih, pemungutan, dan rekapitulasi suara.',
+        'proj.6': 'Perancangan basis data e-commerce di PostgreSQL — skema relasional ternormalisasi lengkap dengan query-nya.',
+        'proj.more': 'Proyek lainnya di GitHub',
+        'proj.m1': 'Skrip optimasi Linux: ZRAM, CPU, dan cleanup sistem.',
+        'proj.m2': 'Tuning kernel Windows di ThinkPad dengan PowerShell.',
+        'proj.m3': 'Sistem manajemen perpustakaan berbasis Python.',
+        'proj.m4': 'Aplikasi rental jeep wisata Kaliurang dengan Java.',
+        'proj.m5': 'Eksplorasi galaksi interaktif berbasis web.',
+        'proj.m6': 'Konfigurasi shell dan Neovim (AstroNvim v4) milik saya.',
+        'contact.eyebrow': 'Kontak', 'contact.title': 'Mari terhubung.',
+        'contact.desc': 'Tertarik berkolaborasi untuk riset computer vision, proyek web, atau sekadar ngobrol soal teknologi? Jangkau saya melalui kanal berikut — saya senang bertemu orang baru.',
+        'footer.copy': '© 2026 Fatahillah Alif Pangaribowo. Dibuat dengan HTML, CSS, dan JavaScript murni.'
+      },
+      en: {
+        'nav.about': 'About', 'nav.skills': 'Skills', 'nav.exp': 'Experience',
+        'nav.projects': 'Projects', 'nav.contact': 'Contact',
+        'hero.eyebrow': 'Hi, I\u2019m',
+        'hero.lead': 'Object detection research assistant at Institut Teknologi Dirgantara Adisutjipto (ITDA) Yogyakarta. I build web applications, explore machine learning, and tinker with Linux all the way down to the kernel.',
+        'hero.cta1': 'View Projects', 'hero.cta2': 'Get in Touch',
+        'hero.pill.work': 'Open to collaboration',
+        'hero.badge.title': 'Software Developer',
+        'hero.scroll': 'Scroll',
+        'stat.repos': 'Public Repositories', 'stat.lang': 'Programming Languages',
+        'stat.since': 'Coding Since', 'stat.followers': 'GitHub Followers',
+        'about.eyebrow': 'About Me',
+        'about.title': 'An object detection researcher who loves building software.',
+        'about.p1': 'I\u2019m an Informatics student at <strong>Institut Teknologi Dirgantara Adisutjipto (ITDA)</strong> Yogyakarta — an aerospace institute near Adisutjipto Air Force Base. I currently work as an <strong>Object Detection Research Assistant</strong>, working with datasets, annotation, and computer vision model training.',
+        'about.p2': 'Beyond research, I build web applications — from <strong>CodeIgniter 4</strong> to <strong>React</strong> — and experiment with <strong>TensorFlow.js</strong> to bring machine learning straight into the browser. I\u2019m also a big Linux enthusiast: writing system optimization scripts, curating dotfiles, and tweaking kernels.',
+        'about.p3': 'Previously, I served as <strong>IT Executive at Adisutjipto Linux Community</strong>, stayed active in <strong>HMF ITDA</strong> (the Informatics Student Association), and deepened my skills through <strong>Google Cloud Skills Boost</strong> plus industry experience with <strong>GMF AeroAsia</strong> and <strong>Traveloka</strong>.',
+        'skills.eyebrow': 'Skills', 'skills.title': 'The toolkit I use every day.',
+        'skills.g1': 'Languages', 'skills.g4': 'Systems &amp; Tools',
+        'exp.eyebrow': 'Experience', 'exp.title': 'The journey so far.',
+        'exp.1.date': '2024 — Present',
+        'exp.1.desc': 'Supporting computer vision research: preparing and annotating datasets, training and evaluating object detection models, and documenting experiment pipelines.',
+        'exp.1.tag': 'Active Research',
+        'exp.2.date': 'Campus &amp; Community',
+        'exp.2.desc': 'Managing the community\u2019s IT needs: system administration, documentation, and sharing open-source knowledge with fellow members.',
+        'exp.3.date': 'Organization',
+        'exp.3.desc': 'Active in the Informatics Student Association: academic programs, skill development, and committee work.',
+        'exp.3.tag': 'Leadership',
+        'exp.4.date': 'Self Development',
+        'exp.4.desc': 'Completed cloud learning paths and industry development programs to strengthen software engineering and cloud computing foundations.',
+        'proj.eyebrow': 'Selected Projects', 'proj.title': 'Some things I\u2019ve built.',
+        'proj.1': 'An interactive pedagogical workbench: a zero-to-hero curriculum and production-grade MVC reference blueprints for CodeIgniter 4.',
+        'proj.2': 'A modern, responsive network monitoring dashboard — real-time data visualization with a clean interface.',
+        'proj.3': 'An interactive 3D solar system simulation — explore planets and beyond with stunning, educational visuals.',
+        'proj.4': 'A machine learning web app that classifies skin conditions — in-browser inference powered by TensorFlow.js.',
+        'proj.5': 'A KPU-inspired digital voting system — voter management, ballot casting, and vote tabulation.',
+        'proj.6': 'E-commerce database design in PostgreSQL — a normalized relational schema complete with queries.',
+        'proj.more': 'More projects on GitHub',
+        'proj.m1': 'Linux optimization script: ZRAM, CPU, and system cleanup.',
+        'proj.m2': 'Windows kernel tuning on ThinkPad via PowerShell.',
+        'proj.m3': 'A Python-based library management system.',
+        'proj.m4': 'A Java app for Kaliurang jeep tour rentals.',
+        'proj.m5': 'An interactive web-based galaxy explorer.',
+        'proj.m6': 'My shell configs and Neovim (AstroNvim v4) setup.',
+        'contact.eyebrow': 'Contact', 'contact.title': 'Let\u2019s connect.',
+        'contact.desc': 'Interested in collaborating on computer vision research, a web project, or just chatting about tech? Reach out through the channels below — I\u2019m always happy to meet new people.',
+        'footer.copy': '© 2026 Fatahillah Alif Pangaribowo. Built with plain HTML, CSS, and JavaScript.'
+      }
+    };
+    const ROTATORS = {
+      id: ['Object Detection Researcher', 'Software Developer', 'Machine Learning Enthusiast', 'Pengoprek Linux & Kernel'],
+      en: ['Object Detection Researcher', 'Software Developer', 'Machine Learning Enthusiast', 'Linux & Kernel Tinkerer']
+    };
+    let LANG = localStorage.getItem('lang') || 'id';
+    function applyLang(lang) {
+      LANG = lang;
+      document.documentElement.lang = lang;
+      document.querySelectorAll('[data-lang]').forEach(s => s.classList.toggle('active', s.dataset.lang === lang));
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const k = el.dataset.i18n;
+        const v = I18N[lang][k];
+        if (v !== undefined) el.innerHTML = v;
+      });
+      localStorage.setItem('lang', lang);
+      ROTATE.length = 0; ROTATE.push(...ROTATORS[lang]);
+    }
+    document.getElementById('langToggle').addEventListener('click', () => {
+      applyLang(LANG === 'id' ? 'en' : 'id');
+    });
+    applyLang(LANG);
+
+    /* ================= Mobile nav ================= */
+    const burger = document.getElementById('burger');
+    const navLinks = document.getElementById('navLinks');
+    burger.addEventListener('click', () => navLinks.classList.toggle('open'));
+    navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navLinks.classList.remove('open')));
+
+    /* ================= Project card spotlight ================= */
+    document.querySelectorAll('.proj').forEach(card => {
+      card.addEventListener('pointermove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
+      });
+    });
+  </script>
+</body>
+</html>
