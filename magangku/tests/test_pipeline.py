@@ -730,3 +730,15 @@ def test_scraper_probes_multiple_candidates_by_default():
     assert len(urls) > 1
     assert any("api.kemnaker.go.id" in u for u in urls)
     assert any("/be/v1/api/" in u for u in urls)
+
+
+def test_serve_refuses_non_local_bind_without_optin():
+    """Dashboard exposes personal data with no auth - must not bind to LAN silently."""
+    from magangku.cli import build_parser, cmd_serve
+    args = build_parser().parse_args(["serve", "--host", "0.0.0.0"])
+    assert cmd_serve(args) == 1  # refused
+
+
+def test_serve_defaults_to_localhost():
+    from magangku.cli import build_parser
+    assert build_parser().parse_args(["serve"]).host == "127.0.0.1"

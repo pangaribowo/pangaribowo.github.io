@@ -602,8 +602,20 @@ def cmd_serve(args: argparse.Namespace) -> int:
     os.environ["MAGANGKU_DB"] = str(getattr(args, "db", None) or DEFAULT_DB)
     os.environ["MAGANGKU_SOURCE"] = args.source
 
-    say(f"\nDashboard MagangKu -> http://{args.host}:{args.port}\n", "bold cyan")
-    uvicorn.run(create_app(), host=args.host, port=args.port, log_level="warning")
+    host = args.host
+    if host not in ("127.0.0.1", "localhost", "::1") and not args.allow_lan:
+        err(f"Menolak mengikat ke {host}.")
+        say("  Dashboard menampilkan data pribadi Anda (nama, email, telepon, CV)\n"
+            "  TANPA login. Mengikatnya ke alamat non-lokal membuat siapa pun di\n"
+            "  jaringan yang sama bisa membacanya.\n", "dim")
+        say("  Kalau memang disengaja (mis. akses dari HP di Wi-Fi yang sama):", "dim")
+        say(f"    magangku serve --host {host} --allow-lan\n", "bold")
+        return 1
+
+    say(f"\nDashboard MagangKu -> http://{host}:{args.port}\n", "bold cyan")
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        say("  PERINGATAN: terbuka untuk seluruh jaringan lokal, tanpa login.\n", "yellow")
+    uvicorn.run(create_app(), host=host, port=args.port, log_level="warning")
     return 0
 
 
@@ -929,7 +941,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_watch)
 
     p = sub.add_parser("serve", help="jalankan dashboard web")
-    p.add_argument("--host", default="0.0.0.0")
+    p.add_argument("--host", default="127.0.0.1",
+                   help="default hanya localhost; data pribadi tidak diekspos ke jaringan")
+    p.add_argument("--allow-lan", action="store_true",
+                   help="izinkan akses dari jaringan lokal (sadar risiko: tanpa login)")
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--source", choices=["db", "fixtures"], default="db")
     p.set_defaults(func=cmd_serve)

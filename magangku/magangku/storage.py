@@ -77,12 +77,46 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+#: Bump this whenever SCHEMA changes, and add a matching step in MIGRATIONS.
+SCHEMA_VERSION = 1
+
+#: version -> list of statements that upgrade a DB *from* that version to the
+#: next one. `CREATE TABLE IF NOT EXISTS` handles new tables on its own; this is
+#: for the case it cannot handle: adding a column to a table users already have.
+MIGRATIONS: dict[int, list[str]] = {
+    # 1: ["ALTER TABLE vacancies ADD COLUMN salary TEXT"],
+}
+
+
 class Store:
     def __init__(self, path: str | Path = "magangku.db") -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.connect() as conn:
             conn.executescript(SCHEMA)
+            self._migrate(conn)
+
+    def _migrate(self, conn: sqlite3.Connection) -> None:
+        """Bring an existing database up to SCHEMA_VERSION.
+
+        Without this, shipping a new column silently breaks every user who
+        already has a magangku.db - their file keeps the old shape and queries
+        fail with 'no such column'. PRAGMA user_version is stored inside the DB
+        file itself, so it survives upgrades and needs no extra table.
+        """
+        current = conn.execute("PRAGMA user_version").fetchone()[0]
+        if current >= SCHEMA_VERSION:
+            return
+        for version in range(current, SCHEMA_VERSION):
+            for statement in MIGRATIONS.get(version, []):
+                try:
+                    conn.execute(statement)
+                except sqlite3.OperationalError as exc:
+                    # Re-running an already-applied ALTER is harmless.
+                    if "duplicate column" not in str(exc).lower():
+                        raise
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
