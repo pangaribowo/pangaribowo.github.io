@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "magangku"
+version = "1.0.0"
+description = "Sistem pencari & pencocok lowongan magang MagangHub Kemnaker"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.27",
+    "PyYAML>=6.0",
+    "Jinja2>=3.1",
+    "rich>=13.7",
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "python-dateutil>=2.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+magangku = "magangku.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["magangku*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

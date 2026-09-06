@@ -1,0 +1,82 @@
+# Pemantau lowongan otomatis.
+#
+# CATATAN PENTING: runner GitHub adalah IP datacenter, dan MagangHub berada di
+# belakang Cloudflare yang sering memblokirnya. Workflow ini disiapkan lengkap,
+# tetapi bila `scrape` gagal koneksi, jalankan `watch` dari mesin/VPS pribadi
+# Anda (lewat cron) — bukan dari GitHub Actions.
+#
+# Sebelum dipakai, isi Secrets di repo Anda:
+#   NTFY_TOPIC          (opsional) nama topik ntfy.sh
+#   TELEGRAM_BOT_TOKEN  (opsional)
+#   TELEGRAM_CHAT_ID    (opsional)
+#   PROFILE_YML         isi lengkap profile.yml Anda (base64 atau teks biasa)
+
+name: Pantau Lowongan MagangHub
+
+on:
+  schedule:
+    - cron: "0 1,13 * * *"     # 08:00 & 20:00 WIB
+  workflow_dispatch:
+    inputs:
+      min_score:
+        description: "Skor minimum untuk notifikasi"
+        default: "70"
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Pasang dependensi
+        run: pip install -r requirements.txt
+
+      - name: Susun profile.yml dari secret
+        env:
+          PROFILE_YML: ${{ secrets.PROFILE_YML }}
+        run: |
+          if [ -n "$PROFILE_YML" ]; then
+            printf '%s' "$PROFILE_YML" > profile.yml
+            echo "profile.yml dibuat dari secret."
+          else
+            cp profile.example.yml profile.yml
+            echo "::warning::Secret PROFILE_YML kosong - memakai profil contoh."
+          fi
+
+      # Simpan database antar-run supaya "lowongan baru" benar-benar berarti.
+      - name: Pulihkan database
+        uses: actions/cache@v4
+        with:
+          path: magangku.db
+          key: magangku-db-${{ github.run_id }}
+          restore-keys: magangku-db-
+
+      - name: Jalankan pemantau
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MAGANGKU_DELAY: "1.5"
+        run: |
+          python -m magangku.cli watch \
+            --min-score "${{ github.event.inputs.min_score || 70 }}" \
+            --channel console \
+            ${NTFY_TOPIC:+--channel ntfy} \
+            ${TELEGRAM_BOT_TOKEN:+--channel telegram} \
+          || echo "::warning::Scrape gagal - kemungkinan Cloudflare memblokir runner."
+
+      - name: Unggah laporan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laporan-magangku
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,133 @@
+# =============================================================================
+# MagangKu - Profil Pelamar
+# =============================================================================
+# Salin file ini menjadi `profile.yml`, lalu sesuaikan.
+#   cp profile.example.yml profile.yml
+#
+# Semua bagian bersifat opsional kecuali `identity.name`. Makin lengkap
+# profilnya, makin akurat skor kecocokannya.
+# =============================================================================
+
+identity:
+  name: "Nama Lengkap Anda"
+  email: "email@contoh.com"
+  phone: "08xxxxxxxxxx"
+  city: "Yogyakarta"
+  university: "Nama Kampus"
+  # Jenjang Anda. Nilai yang dipakai Kemnaker: Sarjana, Diploma III,
+  # Diploma IV, Magister, SMA/SMK sederajat.
+  level: "Sarjana"
+  gpa: "3.50"
+  linkedin: ""
+  portfolio: ""
+
+# -----------------------------------------------------------------------------
+# Program studi / jurusan Anda. Tulis apa adanya - mesin pencocokan sudah
+# menangani sinonim (mis. "Informatika" cocok dengan "Teknik Informatika",
+# "Ilmu Komputer", "Sistem Informasi").
+# -----------------------------------------------------------------------------
+majors:
+  - "Teknik Informatika"
+
+# Jurusan lain yang masih Anda terima (bobot lebih rendah daripada `majors`).
+adjacent_majors:
+  - "Sistem Informasi"
+  - "Ilmu Komputer"
+
+# -----------------------------------------------------------------------------
+# Skill / kata kunci yang mewakili diri Anda. Dipakai untuk mencocokkan
+# deskripsi lowongan. Bisa juga diisi otomatis dari CV:
+#   magangku profile from-cv --cv cv.txt
+# -----------------------------------------------------------------------------
+skills:
+  - python
+  - javascript
+  - sql
+  - git
+  - data analysis
+
+# Skill yang sedang ingin Anda pelajari - memberi bonus kecil.
+interests:
+  - machine learning
+  - cloud
+
+# -----------------------------------------------------------------------------
+# Preferensi lokasi. `cities` diprioritaskan di atas `provinces`.
+# Nama tidak perlu persis: "Yogyakarta" cocok dengan "KOTA YOGYAKARTA",
+# "KAB. SLEMAN" (lihat alias di bawah).
+# -----------------------------------------------------------------------------
+location:
+  cities:
+    - "Yogyakarta"
+    - "Sleman"
+    - "Bantul"
+  provinces:
+    - "DAERAH ISTIMEWA YOGYAKARTA"
+    - "JAWA TENGAH"
+  # true  = lowongan di luar preferensi tetap muncul dengan skor lebih rendah
+  # false = lowongan di luar preferensi dibuang total
+  allow_outside: true
+
+# -----------------------------------------------------------------------------
+# Filter keras. Lowongan yang melanggar ini langsung dibuang.
+# -----------------------------------------------------------------------------
+filters:
+  only_open: true          # buang yang sudah lewat batas pendaftaran
+  min_quota: 1             # minimum kuota
+  max_competition: 0       # maks pelamar per slot (0 = tanpa batas)
+  exclude_keywords:        # buang bila judul/deskripsi mengandung ini
+    - "sales canvasser"
+  include_provinces: []    # bila diisi, HANYA provinsi ini yang diproses
+  government_only: false   # true = hanya instansi pemerintah
+
+# -----------------------------------------------------------------------------
+# Bobot penilaian. Tidak harus berjumlah 1.0 - sistem menormalkannya.
+# Naikkan angka untuk sinyal yang paling Anda pedulikan.
+# -----------------------------------------------------------------------------
+weights:
+  major: 0.30         # kecocokan program studi
+  skills: 0.22        # irisan skill dengan deskripsi lowongan
+  location: 0.18      # kedekatan lokasi
+  opportunity: 0.15   # peluang diterima (kuota vs pendaftar)
+  level: 0.10         # kecocokan jenjang pendidikan
+  urgency: 0.05       # sisa waktu pendaftaran
+
+# Bonus/penalti tambahan (poin mentah, sebelum normalisasi ke 0-100).
+boosts:
+  keywords:           # +poin bila kata ini muncul di lowongan
+    remote: 3
+    "work from home": 3
+    magang bersertifikat: 2
+  companies: {}       # mis. { "PT Telkom Indonesia": 5 }
+  government_bonus: 0
+
+# -----------------------------------------------------------------------------
+# Ambang batas verdict (skor 0-100).
+# -----------------------------------------------------------------------------
+thresholds:
+  strong: 75    # sangat cocok - prioritaskan
+  good: 60      # cocok
+  maybe: 45     # pertimbangkan
+  # di bawah `maybe` -> weak
+
+# -----------------------------------------------------------------------------
+# Isi surat lamaran / motivation letter yang di-generate.
+# -----------------------------------------------------------------------------
+letter:
+  language: id            # id | en
+  tone: "profesional"     # profesional | antusias | ringkas
+  highlights:
+    - "Terbiasa bekerja dengan data dan menulis dokumentasi yang rapi."
+    - "Cepat belajar teknologi baru dan nyaman bekerja dalam tim."
+  closing_city: "Yogyakarta"
+
+# -----------------------------------------------------------------------------
+# Notifikasi (opsional). Isi lewat .env, bukan di sini.
+# -----------------------------------------------------------------------------
+notify:
+  enabled: false
+  min_score: 70
+  channels:
+    - console
+    # - ntfy
+    # - telegram
