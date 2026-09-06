@@ -132,6 +132,7 @@ memberi tahu penyebab terbanyaknya, bukan sekadar "tidak ada hasil".
 | `serve` | Dashboard web |
 | `session status \| help \| capture` | Kelola sesi login lokal (tidak pernah menampilkan token) |
 | `sync --from-file \| --auto` | Impor profil resmi Anda dari MagangHub |
+| `probe` | Uji endpoint API Kemnaker mana yang masih hidup |
 | `provinces` | Daftar kode provinsi untuk `--province` |
 
 Selalu ada `--help` di setiap subperintah.
@@ -282,12 +283,57 @@ Contoh cron tiap 6 jam:
 
 ## Sumber data & mode offline
 
-Data diambil dari API publik yang dipakai situs MagangHub sendiri:
+### Kemnaker memindahkan API-nya (per 2026)
+
+MagangHub sedang bermigrasi dari backend lama ke API gateway baru:
 
 ```
-GET https://maganghub.kemnaker.go.id/be/v1/api/list/vacancies-aktif
-    ?order_by=jumlah_kuota&order_direction=DESC&page=1&limit=100[&kode_provinsi=34]
+LAMA  https://maganghub.kemnaker.go.id/be/v1/api/list/vacancies-aktif
+BARU  https://api.kemnaker.go.id/{produk}/{layanan}/v2/{resource}
 ```
+
+Yang berubah dan sudah ditangani MagangKu:
+
+| Aspek | Backend lama | Gateway baru |
+|---|---|---|
+| Penamaan field | `snake_case` (`posisi`, `jumlah_kuota`) | `camelCase` (`positionName`, `quotaTotal`) |
+| Paginasi | `meta.pagination.total` | `meta.total` (gaya Laravel) + `links` |
+| Akses publik | dulu terbuka, kini menuntut login | menuntut login |
+| Data wilayah | nama provinsi | kode BPS (`id_propinsi: "34"`) |
+
+MagangKu **tidak menebak satu alamat lalu menyerah**. Saat `scrape` berjalan ia
+mencoba daftar kandidat endpoint satu per satu, memakai yang pertama benar-benar
+mengembalikan data, lalu menormalkan **kedua** format field ke bentuk yang sama.
+Kalau Anda sudah tahu alamat yang benar, kunci saja lewat `.env`:
+
+```bash
+MAGANGKU_BASE_URL="https://api.kemnaker.go.id/maganghub/vacancy/v2/"
+```
+
+### Cek sendiri endpoint mana yang hidup
+
+```bash
+magangku probe                 # uji semua kandidat, tampilkan mana yang hidup
+magangku probe --kind vacancies --json hasil.json
+```
+
+Tombol yang sama tersedia di dashboard, tab **Hubungkan**.
+
+> **Kejujuran soal status endpoint.** MagangKu dibangun di lingkungan yang
+> **diblokir total** oleh Cloudflare/WAF Kemnaker, jadi saya tidak bisa
+> memverifikasi alamat-alamat baru itu secara langsung. Setiap endpoint di
+> `magangku/endpoints.py` karena itu diberi label kejujuran:
+>
+> | Label | Artinya |
+> |---|---|
+> | `terkonfirmasi` | bentuk responsnya sudah pernah terlihat nyata |
+> | `tercatat di JS` | alamatnya ada di kode situs MagangHub, respons belum terlihat |
+> | `tebakan` | ekstrapolasi pola; mungkin saja 404 |
+>
+> `magangku probe` ada justru untuk mengubah label "tebakan" menjadi fakta,
+> dari koneksi Anda sendiri. Endpoint **daftar lowongan** di gateway baru belum
+> ditemukan publik — dugaan kuat: dipanggil lewat Server Component Next.js,
+> bukan dari browser. Karena itu `--source fixtures` tetap disediakan penuh.
 
 Scraper-nya sopan: ada jeda antar-permintaan (`MAGANGKU_DELAY`), retry dengan
 backoff eksponensial, dan berhenti sendiri di halaman terakhir.
@@ -314,10 +360,11 @@ backoff eksponensial, dan berhenti sendiri di halaman terakhir.
 magangku/
 ├── magangku/
 │   ├── models.py      # Vacancy: bentuk data bersih + metrik turunan
-│   ├── normalize.py   # payload API berantakan  ->  Vacancy
+│   ├── normalize.py   # payload API berantakan  ->  Vacancy (lama & baru)
+│   ├── endpoints.py   # daftar endpoint Kemnaker + label kejujuran
 │   ├── profile.py     # profil + kamus jurusan/jenjang/kota Indonesia
 │   ├── matcher.py     # mesin skor yang bisa dijelaskan
-│   ├── scraper.py     # klien API + pemuat data offline
+│   ├── scraper.py     # klien API multi-gateway + pemuat data offline
 │   ├── storage.py     # SQLite: riwayat, deteksi baru, tracker lamaran
 │   ├── cv.py          # CV teks -> profil
 │   ├── letter.py      # surat lamaran + checklist
@@ -328,7 +375,7 @@ magangku/
 │   ├── web.py         # dashboard FastAPI (antarmuka utama)
 │   └── cli.py         # antarmuka baris perintah
 ├── data/fixtures/     # 120 lowongan contoh (offline)
-├── tests/             # 79 tes
+├── tests/             # 91 tes
 └── profile.example.yml
 ```
 

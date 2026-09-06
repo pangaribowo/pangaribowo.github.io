@@ -33,6 +33,7 @@ SESSION_FILE = ROOT / "session.json"
 
 # Domain yang boleh dihubungi. Apa pun di luar ini ditolak mentah-mentah.
 ALLOWED_HOSTS = (
+    "api.kemnaker.go.id",            # gateway baru (per 2026) - lihat endpoints.py
     "maganghub.kemnaker.go.id",
     "monev.maganghub.kemnaker.go.id",
     "account.kemnaker.go.id",
@@ -48,11 +49,23 @@ ALLOWED_HOSTS = (
 # mencoba satu per satu dan melaporkan mana yang berhasil. Bila semua gagal,
 # pakai jalur `--from-file` yang selalu bekerja.
 PROFILE_ENDPOINTS = (
+    # --- gateway baru (api.kemnaker.go.id) - didahulukan sejak 2026 ---------
+    "https://api.kemnaker.go.id/profile/v1/profiles/me",
+    "https://api.kemnaker.go.id/v2/users/me",
+    "https://api.kemnaker.go.id/maganghub/onboarding/v2/profile",
+    # --- backend lama - masih dicoba sebagai cadangan ----------------------
     "https://monev.maganghub.kemnaker.go.id/api/users/me",
     "https://maganghub.kemnaker.go.id/be/v1/api/users/me",
     "https://maganghub.kemnaker.go.id/be/v1/api/profile",
     "https://maganghub.kemnaker.go.id/be/v1/api/peserta/profile",
     "https://account.kemnaker.go.id/api/users/me",
+)
+
+# Endpoint daftar lamaran. Yang pertama SUDAH TERKONFIRMASI dari respons nyata
+# yang dikirim pengguna (paginasi Laravel, meta.hostname = maganghub-recruitment-*).
+APPLICATION_ENDPOINTS = (
+    "https://api.kemnaker.go.id/v2/applications/me",
+    "https://api.kemnaker.go.id/maganghub/recruitment/v2/applications/me",
 )
 
 _TOKEN_PATTERNS = (
@@ -233,6 +246,80 @@ class SessionClient:
             if ok and payload:
                 return payload, url, log
         return None, "", log
+
+    def discover_applications(
+        self, endpoints: tuple[str, ...] = APPLICATION_ENDPOINTS
+    ) -> tuple[Any | None, str, list[str]]:
+        """Fetch the user's submitted applications from the new gateway."""
+        log: list[str] = []
+        for url in endpoints:
+            ok, payload, message = self.get_json(url)
+            log.append(f"{'OK ' if ok else '-- '} {url}  ({message})")
+            if ok and payload is not None:
+                return payload, url, log
+        return None, "", log
+
+    def probe(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Probe one endpoint and describe what came back, without auth if needed.
+
+        Unlike `get_json` this never short-circuits on a missing session: probing
+        anonymously is exactly how we learn which endpoints are public.
+        """
+        result: dict[str, Any] = {
+            "url": url, "status": 0, "ok": False, "shape": "", "note": "",
+            "items": 0, "total": 0,
+        }
+        if not is_allowed(url):
+            result["note"] = "ditolak - di luar domain Kemnaker"
+            return result
+        try:
+            import httpx
+        except ImportError:
+            result["note"] = "httpx belum terpasang"
+            return result
+
+        try:
+            with httpx.Client(timeout=self.timeout, follow_redirects=False) as client:
+                resp = client.get(url, headers=self._headers(url), params=params or {})
+        except Exception as exc:  # noqa: BLE001
+            result["note"] = redact(f"{type(exc).__name__}: {exc}")
+            return result
+
+        result["status"] = resp.status_code
+        if resp.status_code in (301, 302, 303, 307, 308):
+            result["note"] = f"redirect -> {redact(resp.headers.get('location', '?'))}"
+            return result
+        try:
+            payload = resp.json()
+        except json.JSONDecodeError:
+            body = resp.text[:120].replace("\n", " ")
+            result["note"] = f"bukan JSON: {redact(body)}"
+            return result
+
+        result["ok"] = resp.status_code == 200
+        if isinstance(payload, dict):
+            data = payload.get("data")
+            if isinstance(data, list):
+                result["items"] = len(data)
+                result["shape"] = "envelope-list"
+            elif isinstance(data, dict):
+                result["items"] = 1
+                result["shape"] = "envelope-object"
+            else:
+                result["shape"] = "object:" + ",".join(list(payload)[:5])
+            meta = payload.get("meta")
+            if isinstance(meta, dict):
+                pag = meta.get("pagination") if isinstance(meta.get("pagination"), dict) else meta
+                result["total"] = pag.get("total", 0) or 0
+                if "hostname" in meta:
+                    result["note"] = f"pod={meta['hostname']}"
+            for key in ("failed", "message", "error", "type"):
+                if key in payload and not result["note"]:
+                    result["note"] = f"{key}={redact(payload[key])[:70]}"
+        elif isinstance(payload, list):
+            result["shape"] = "bare-list"
+            result["items"] = len(payload)
+        return result
 
 
 # --------------------------------------------------------------------------- #

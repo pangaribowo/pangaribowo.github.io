@@ -248,6 +248,40 @@ def create_app() -> FastAPI:
         _, url, log = SessionClient(session).discover_profile()
         return {"ok": bool(url), "endpoint": url, "log": [redact(x) for x in log]}
 
+    @app.post("/api/probe")
+    def probe_endpoints(payload: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+        """Test every known Kemnaker endpoint from this machine.
+
+        Kemnaker migrated MagangHub to a new API gateway, so which endpoints
+        are alive depends on the network you run from. This reports reality
+        rather than assumptions.
+        """
+        from .endpoints import ALL_ENDPOINTS, CONFIDENCE_LABEL
+
+        session = Session.load()
+        client = SessionClient(session, timeout=float(payload.get("timeout", 12)))
+        kind = payload.get("kind") or ""
+
+        results, alive = [], 0
+        for endpoint in ALL_ENDPOINTS:
+            if kind and endpoint.kind != kind:
+                continue
+            if "{vacancy_id}" in endpoint.url:
+                continue
+            url, params = endpoint.build()
+            row = client.probe(url, params)
+            row["kind"] = endpoint.kind
+            row["confidence"] = endpoint.confidence
+            row["confidence_label"] = CONFIDENCE_LABEL.get(endpoint.confidence, "")
+            row["auth"] = endpoint.auth
+            row["note_static"] = endpoint.note
+            row["url"] = redact(row["url"])
+            row["note"] = redact(row.get("note", ""))
+            alive += 1 if row["ok"] else 0
+            results.append(row)
+        return {"results": results, "alive": alive, "total": len(results),
+                "has_session": not session.is_empty}
+
     @app.post("/api/sync")
     def sync_profile(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
         """Import an official Kemnaker profile - from pasted JSON or live session."""
@@ -706,6 +740,19 @@ background:var(--ac);color:#052a3d;border-radius:50%;display:grid;place-items:ce
     </div>
 
     <div class="panel">
+      <h2>Cek endpoint API Kemnaker</h2>
+      <p class="sub">Kemnaker memindahkan MagangHub ke gateway baru
+        (<code>api.kemnaker.go.id</code>). Sebagian alamat di bawah masih
+        <b>tebakan</b> karena tidak bisa diuji dari lingkungan pembuatan.
+        Klik tombol ini dari koneksi internet Anda untuk melihat mana yang
+        benar-benar hidup.</p>
+      <div style="display:flex;gap:9px;flex-wrap:wrap">
+        <button class="btn gh" id="btnProbe">Uji semua endpoint</button>
+      </div>
+      <div id="probeOut"></div>
+    </div>
+
+    <div class="panel">
       <h2>Yang tidak akan pernah dilakukan MagangKu</h2>
       <ul style="color:var(--mut);font-size:13px;margin:0;padding-left:19px">
         <li>Meminta atau menyimpan password Anda</li>
@@ -959,6 +1006,39 @@ $('#btnSessTest').onclick=async()=>{
       ? 'Berhasil: <b>'+esc(d.endpoint)+'</b>' : 'Tidak ada endpoint yang merespons.'}</div>
       <pre>${esc((d.log||[]).join('\n'))}</pre>`;
   }catch(e){ $('#sessOut').innerHTML=`<div class="note e">${esc(e.message)}</div>`; }
+};
+$('#btnProbe').onclick=async()=>{
+  $('#probeOut').innerHTML='<div class="note i">Menguji semua endpoint, mohon tunggu...</div>';
+  try{
+    const d=await api('/api/probe',{method:'POST',
+      headers:{'Content-Type':'application/json'},body:'{}'});
+    const groups={};
+    (d.results||[]).forEach(r=>{ (groups[r.kind]=groups[r.kind]||[]).push(r); });
+    let html=`<div class="note ${d.alive?'g':'w'}">${d.alive} dari ${d.total}
+      endpoint merespons.${d.has_session?'':' (tanpa sesi login - endpoint privat pasti gagal)'}</div>`;
+    for(const k of Object.keys(groups)){
+      html+=`<div style="margin-top:10px"><b style="font-size:12px;
+        text-transform:uppercase;color:var(--mut)">${esc(k)}</b>`;
+      groups[k].forEach(r=>{
+        const badge=r.ok?'g':'e';
+        const detail=r.ok
+          ? `${r.items} item${r.total?', total '+r.total:''}${r.note?' | '+esc(r.note):''}`
+          : `${r.status||'---'} ${esc(r.note||'')}`;
+        html+=`<div class="note ${badge}" style="margin:5px 0">
+          <div style="font-family:ui-monospace,monospace;font-size:11px;
+            word-break:break-all">${esc(r.url)}</div>
+          <div style="font-size:11px;color:var(--mut);margin-top:3px">${detail}
+            &nbsp;·&nbsp;<i>${esc(r.confidence_label||r.confidence)}</i></div></div>`;
+      });
+      html+='</div>';
+    }
+    if(d.alive){
+      html+=`<p class="sub" style="margin-top:10px">Untuk memakai endpoint
+        lowongan yang hidup, set <code>MAGANGKU_BASE_URL</code> di
+        <code>.env</code> lalu jalankan ulang.</p>`;
+    }
+    $('#probeOut').innerHTML=html;
+  }catch(e){ $('#probeOut').innerHTML=`<div class="note e">${esc(e.message)}</div>`; }
 };
 async function doSync(dry){
   const raw=$('#syncJson').value.trim();

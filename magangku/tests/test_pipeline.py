@@ -599,3 +599,134 @@ def test_cv_endpoint_parses_without_applying(client):
 
 def test_cv_endpoint_rejects_short_text(client):
     assert client.post("/api/profile/from-cv", json={"text": "hai"}).status_code == 400
+
+
+# =========================================================================== #
+# Gateway migration (api.kemnaker.go.id) - added v1.2
+# =========================================================================== #
+def test_laravel_pagination_envelope_parsed():
+    """The new gateway uses meta.total, not meta.pagination.total."""
+    from magangku.normalize import current_page, last_page, page_total
+    payload = {
+        "data": [],
+        "links": {"first": "...", "last": "...", "prev": None, "next": None},
+        "meta": {"current_page": 2, "from": None, "last_page": 5, "per_page": 15,
+                 "to": None, "total": 73,
+                 "hostname": "maganghub-recruitment-858955b475-nbxvg",
+                 "client_ip": "10.233.115.214"},
+    }
+    assert page_total(payload) == 73
+    assert last_page(payload) == 5
+    assert current_page(payload) == 2
+
+
+def test_legacy_pagination_envelope_still_parsed():
+    from magangku.normalize import last_page, page_total
+    payload = {"data": [], "meta": {"pagination": {"total": 116, "last_page": 2}}}
+    assert page_total(payload) == 116
+    assert last_page(payload) == 2
+
+
+def test_normalize_v2_camelcase_record():
+    from magangku.normalize import normalize_vacancy
+    raw = {
+        "id": "uuid-1", "positionName": "Backend Intern",
+        "qualification": "Python, Docker",
+        "organizer": {"name": "PT Nusantara", "location": {
+            "cityName": "Sleman", "provinceName": "DI YOGYAKARTA",
+            "provinceCode": "34"}},
+        "quotaTotal": 10, "registeredTotal": 4,
+        "studyPrograms": ["teknik informatika"], "educationLevels": ["S1"],
+        "registrationDeadline": "2026-10-15T23:59:59Z",
+    }
+    v = normalize_vacancy(raw)
+    assert v.id == "uuid-1"
+    assert v.position == "Backend Intern"
+    assert v.company == "PT Nusantara"
+    assert v.city == "Sleman"
+    assert v.province_code == "34"
+    assert v.quota == 10 and v.registered == 4
+    assert v.majors == ["teknik informatika"]
+    assert v.levels == ["S1"]
+    assert v.deadline is not None
+
+
+def test_v2_and_legacy_records_coexist():
+    """Both schemas must survive the same normalize_payload call."""
+    from magangku.normalize import normalize_payload
+    payload = {"data": [
+        {"id": "u1", "positionName": "Data Intern",
+         "organizer": {"name": "PT Baru"}, "quotaTotal": 3},
+        {"id_posisi": 42, "posisi": "Analis", "jumlah_kuota": 5,
+         "perusahaan": {"nama_perusahaan": "PT Lama"}},
+    ]}
+    rows = normalize_payload(payload)
+    assert len(rows) == 2
+    assert {r.company for r in rows} == {"PT Baru", "PT Lama"}
+
+
+def test_gateway_host_is_allowed():
+    from magangku.session import is_allowed
+    assert is_allowed("https://api.kemnaker.go.id/v2/applications/me")
+    assert not is_allowed("https://evil.example.com/steal")
+
+
+def test_profile_endpoints_prefer_new_gateway():
+    from magangku.session import PROFILE_ENDPOINTS
+    assert "api.kemnaker.go.id" in PROFILE_ENDPOINTS[0]
+
+
+def test_sync_unwraps_single_element_data_list():
+    """Gateway wraps one profile in a list: {"data": [{...}]}."""
+    from magangku.sync import map_kemnaker_profile
+    out = map_kemnaker_profile({"data": [{
+        "nama": "Bowo Pangaribowo", "email": "b@example.com",
+        "telepon": "08123456789", "alamat": "Jl. Kaliurang KM 5, Sleman",
+        "id_propinsi": "34"}]})
+    assert out["identity"]["name"] == "Bowo Pangaribowo"
+    assert out["identity"]["phone"] == "08123456789"
+    assert out["identity"]["city"] == "Sleman"
+    assert out["location"]["provinces"] == ["DAERAH ISTIMEWA YOGYAKARTA"]
+
+
+def test_city_from_address_rejects_street_lines():
+    from magangku.sync import _city_from_address
+    assert _city_from_address("Jl. Kaliurang KM 5, Sleman") == "Sleman"
+    assert _city_from_address("Jl. Merdeka No. 12") == ""
+    assert _city_from_address("Kompleks X, 55281") == ""
+
+
+def test_province_code_lookup():
+    from magangku.sync import _province_from_code
+    assert _province_from_code("34") == "DAERAH ISTIMEWA YOGYAKARTA"
+    assert _province_from_code("11") == "ACEH"
+    assert _province_from_code("") == ""
+    assert _province_from_code("999") == ""
+
+
+def test_endpoint_registry_is_labelled_honestly():
+    from magangku.endpoints import ALL_ENDPOINTS
+    assert ALL_ENDPOINTS
+    for e in ALL_ENDPOINTS:
+        assert e.confidence in {"confirmed", "documented", "guess"}
+        assert e.url.startswith("https://")
+        assert "kemnaker.go.id" in e.url
+    confirmed = [e for e in ALL_ENDPOINTS if e.confidence == "confirmed"]
+    assert any("applications/me" in e.url for e in confirmed)
+
+
+def test_scraper_honours_pinned_base_url():
+    """An explicit MAGANGKU_BASE_URL must disable endpoint auto-probing."""
+    from magangku.scraper import MagangHubScraper as Scraper
+    s = Scraper(base_url="https://api.kemnaker.go.id/custom/v9/")
+    assert s.candidate_urls() == [
+        "https://api.kemnaker.go.id/custom/v9/list/vacancies-aktif"]
+    assert s.resolve_url().startswith("https://api.kemnaker.go.id/custom/v9/")
+
+
+def test_scraper_probes_multiple_candidates_by_default():
+    from magangku.scraper import MagangHubScraper as Scraper
+    urls = Scraper().candidate_urls()
+    assert len(urls) > 1
+    assert any("api.kemnaker.go.id" in u for u in urls)
+    assert any("/be/v1/api/" in u for u in urls)

@@ -56,7 +56,10 @@ class MagangHubScraper:
         max_retries: int | None = None,
         cookie: str | None = None,
     ) -> None:
-        self.base_url = (base_url or os.getenv("MAGANGKU_BASE_URL") or DEFAULT_BASE).rstrip("/") + "/"
+        pinned = base_url or os.getenv("MAGANGKU_BASE_URL") or ""
+        self._pinned = bool(pinned)
+        self._resolved = ""
+        self.base_url = (pinned or DEFAULT_BASE).rstrip("/") + "/"
         self.timeout = float(timeout if timeout is not None else os.getenv("MAGANGKU_TIMEOUT", 30))
         self.delay = float(delay if delay is not None else os.getenv("MAGANGKU_DELAY", 1.0))
         self.max_retries = int(max_retries if max_retries is not None
@@ -70,22 +73,92 @@ class MagangHubScraper:
             headers["Cookie"] = self.cookie
         return headers
 
+    # ------------------------------------------------------------------ #
+    def candidate_urls(self) -> list[str]:
+        """Vacancy-list URLs to try, best guess first.
+
+        If the user pinned MAGANGKU_BASE_URL (or passed base_url) we honour it
+        exclusively - explicit configuration always wins over auto-detection.
+        """
+        if self._pinned:
+            return [self.base_url + VACANCIES_PATH]
+        from .endpoints import VACANCY_ENDPOINTS
+        seen, urls = set(), []
+        for endpoint in VACANCY_ENDPOINTS:
+            if endpoint.url not in seen:
+                seen.add(endpoint.url)
+                urls.append(endpoint.url)
+        return urls
+
+    def resolve_url(self) -> str:
+        """Pick the first vacancy endpoint that actually returns rows.
+
+        Kemnaker moved MagangHub behind a new gateway (api.kemnaker.go.id) in
+        2026 and the old path now demands auth, so we probe instead of assuming.
+        The winner is cached for the life of this client.
+        """
+        if self._resolved:
+            return self._resolved
+        candidates = self.candidate_urls()
+        if len(candidates) == 1:
+            self._resolved = candidates[0]
+            return self._resolved
+
+        errors: list[str] = []
+        saved_retries, self.max_retries = self.max_retries, 1  # probe fast
+        saved_level = log.level
+        log.setLevel(logging.ERROR)  # probing failures are expected; don't shout
+        try:
+            for url in candidates:
+                try:
+                    payload = self._get(url, {"page": 1, "limit": 1})
+                except ScrapeError as exc:
+                    errors.append(f"  - {url}\n      {str(exc).splitlines()[0]}")
+                    continue
+                rows = payload.get("data") if isinstance(payload, dict) else None
+                if isinstance(rows, list):
+                    log.info("Endpoint aktif: %s", url)
+                    self._resolved = url
+                    return url
+                errors.append(f"  - {url}\n      200 tapi tanpa 'data' berbentuk list")
+        finally:
+            self.max_retries = saved_retries
+            log.setLevel(saved_level)
+
+        raise ScrapeError(
+            "Tidak ada endpoint lowongan yang merespons.\n"
+            + "\n".join(errors)
+            + "\n\nKemnaker memindahkan API MagangHub ke gateway baru "
+              "(api.kemnaker.go.id) dan endpoint lama kini butuh login.\n"
+              "Jalankan `magangku probe` untuk menguji semua kandidat dari mesin "
+              "Anda, atau pakai `--source fixtures` untuk bekerja offline."
+        )
+
     def fetch_page(self, page: int = 1, limit: int = 100, **params: Any) -> dict[str, Any]:
         """Fetch one page with exponential backoff. Raises ScrapeError."""
-        import httpx  # imported lazily so offline use needs no network stack
+        url = params.pop("_url", None) or self.resolve_url()
+        is_legacy = "/be/v1/api/" in url
 
-        query: dict[str, Any] = {
-            "order_by": params.pop("order_by", "jumlah_kuota"),
-            "order_direction": params.pop("order_direction", "DESC"),
-            "page": page,
-            "limit": limit,
-            "per_page": limit,
-        }
+        query: dict[str, Any] = {"page": page, "limit": limit}
+        if is_legacy:
+            query["order_by"] = params.pop("order_by", "jumlah_kuota")
+            query["order_direction"] = params.pop("order_direction", "DESC")
+            query["per_page"] = limit
+        else:
+            params.pop("order_by", None)
+            params.pop("order_direction", None)
+            query["per_page"] = limit
         for key, value in params.items():
             if value not in (None, "", []):
                 query[key] = value
 
-        url = self.base_url + VACANCIES_PATH
+        return self._get(url, query)
+
+    def _get(self, url: str, query: dict[str, Any]) -> dict[str, Any]:
+        """Single GET with retry/backoff, shared by probing and paging."""
+        import httpx  # imported lazily so offline use needs no network stack
+
+        page = query.get("page", 1)
         last_exc: Exception | None = None
 
         for attempt in range(1, self.max_retries + 1):
@@ -139,11 +212,12 @@ class MagangHubScraper:
     ) -> Iterator[dict[str, Any]]:
         page, fetched = start_page, 0
         total_pages: int | None = None
+        url = self.resolve_url()  # resolve once, reuse for every page
 
         while True:
             if max_pages is not None and fetched >= max_pages:
                 break
-            payload = self.fetch_page(page=page, limit=limit, **params)
+            payload = self.fetch_page(page=page, limit=limit, _url=url, **params)
             payload["_scraped_at"] = utcnow_iso()
 
             rows = payload.get("data") if isinstance(payload, dict) else None
@@ -175,7 +249,13 @@ class MagangHubScraper:
     ) -> list[Vacancy]:
         params: dict[str, Any] = {}
         if province:
-            params["kode_provinsi"] = province
+            # Legacy backend calls it kode_provinsi; the new gateway uses
+            # camelCase. Send both - each backend ignores the key it lacks.
+            if "/be/v1/api/" in self.resolve_url():
+                params["kode_provinsi"] = province
+            else:
+                params["provinceCode"] = province
+                params["kode_provinsi"] = province
 
         out: list[Vacancy] = []
         for idx, payload in enumerate(

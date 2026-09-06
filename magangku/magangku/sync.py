@@ -25,8 +25,49 @@ PHONE_KEYS = ("no_hp", "nomor_hp", "no_telepon", "telepon", "phone_number",
               "phone", "handphone", "msisdn")
 CITY_KEYS = ("nama_kabupaten", "kabupaten", "kota", "domisili", "city",
              "regency_name", "nama_kota", "alamat_kota")
-PROVINCE_KEYS = ("nama_provinsi", "nama_propinsi", "provinsi", "propinsi", "province")
+PROVINCE_KEYS = ("nama_provinsi", "nama_propinsi", "provinsi", "propinsi", "province",
+                 "province_name", "provinceName")
+# api.kemnaker.go.id returns BPS codes rather than names.
+PROVINCE_CODE_KEYS = ("id_propinsi", "id_provinsi", "kode_provinsi", "kode_propinsi",
+                      "province_code", "provinceCode")
 ADDRESS_KEYS = ("alamat", "alamat_lengkap", "address", "street_address")
+
+
+def _city_from_address(address: Any) -> str:
+    """Best-effort city from a free-form address string.
+
+    'Jl. Kaliurang KM 5, Sleman' -> 'Sleman'. A street line is useless as a
+    location filter, so we take the last comma-separated chunk and only accept
+    it when it looks like a place name rather than a street or postcode.
+    """
+    text = str(address or "").strip().rstrip(".")
+    if not text or "," not in text:
+        return ""
+    tail = text.split(",")[-1].strip()
+    if not tail or len(tail) > 40 or any(ch.isdigit() for ch in tail):
+        return ""
+    if tail.lower().startswith(("jl", "jalan", "gg", "gang", "rt", "rw", "no")):
+        return ""
+    return tail
+
+
+def _province_from_code(code: Any) -> str:
+    """Resolve a BPS province code ('34') to its name ('DI YOGYAKARTA')."""
+    code = str(code or "").strip()
+    if not code:
+        return ""
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        path = _Path(__file__).resolve().parent.parent / "data" / "fixtures" / "provinces.json"
+        raw = _json.loads(path.read_text(encoding="utf-8"))
+        rows = raw.get("data") if isinstance(raw, dict) else raw
+        for row in rows or []:
+            if str(row.get("kode", "")).lstrip("0") == code.lstrip("0"):
+                return str(row.get("nama", "") or "")
+    except Exception:  # noqa: BLE001 - never let a lookup break syncing
+        return ""
+    return ""
 
 EDU_LIST_KEYS = ("pendidikan", "riwayat_pendidikan", "educations", "education",
                  "data_pendidikan", "pendidikan_terakhir")
@@ -52,9 +93,21 @@ _LEVEL_PRETTY = {"sma": "SMA/SMK sederajat", "d3": "Diploma III",
 
 
 def _unwrap(payload: Any) -> Any:
-    """Peel common envelopes: {"data": {...}}, {"result": {...}}."""
+    """Peel common envelopes: {"data": {...}}, {"result": {...}}.
+
+    The new api.kemnaker.go.id gateway wraps a SINGLE profile in a one-element
+    list - {"data": [{...}]} - so a bare list of length 1 is unwrapped too.
+    """
     seen = 0
-    while isinstance(payload, dict) and seen < 4:
+    while seen < 6:
+        if isinstance(payload, list):
+            if len(payload) == 1 and isinstance(payload[0], dict):
+                payload = payload[0]
+                seen += 1
+                continue
+            break
+        if not isinstance(payload, dict):
+            break
         for key in ("data", "result", "payload", "user", "profile", "profil"):
             inner = payload.get(key)
             if isinstance(inner, (dict, list)) and inner:
@@ -178,6 +231,12 @@ def map_kemnaker_profile(payload: Any) -> dict[str, Any]:
     skills = _skill_names(_find_list(root, SKILL_LIST_KEYS))
 
     province = _find(root, PROVINCE_KEYS)
+    # New gateway sends numeric codes (id_propinsi / id_kabupaten) instead of
+    # names; resolve them against the bundled BPS province list.
+    if not province:
+        province = _province_from_code(_find(root, PROVINCE_CODE_KEYS))
+    if not identity.get("city"):
+        identity["city"] = _city_from_address(_find(root, ADDRESS_KEYS))
     identity = {k: v for k, v in identity.items() if v}
 
     return {

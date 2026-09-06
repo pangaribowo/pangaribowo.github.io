@@ -20,6 +20,7 @@ import sys
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -178,7 +179,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         ok("  API Kemnaker dapat dihubungi - mode live siap")
     except ScrapeError as exc:
         warn(f"  Tidak bisa terhubung: {str(exc).splitlines()[0]}")
-        say("  -> Gunakan `--source fixtures` untuk mode offline.", "dim")
+        say("  -> Jalankan `magangku probe` untuk melihat endpoint mana yang hidup.", "dim")
+        say("  -> Atau gunakan `--source fixtures` untuk mode offline.", "dim")
 
     env = ROOT / ".env"
     say(f"\n.env             : {'ada' if env.exists() else 'belum ada (opsional)'}")
@@ -605,6 +607,84 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_probe(args: argparse.Namespace) -> int:
+    """Test every known Kemnaker endpoint from THIS machine and report reality.
+
+    The sandbox this tool was built in cannot reach kemnaker.go.id, so several
+    endpoints are educated guesses. Running this on a normal connection turns
+    those guesses into facts - and tells you exactly which ones still work.
+    """
+    from .endpoints import ALL_ENDPOINTS, CONFIDENCE_LABEL, by_kind
+    from .session import Session, SessionClient
+
+    session = Session.load()
+    client = SessionClient(session, timeout=args.timeout)
+
+    if session.is_empty:
+        say("Tidak ada sesi tersimpan - endpoint publik saja yang bisa diuji.\n"
+            "Untuk menguji endpoint privat: `magangku session help`.\n", "yellow")
+    else:
+        say(f"Memakai sesi tersimpan ({session.summary()['source']}).\n", "dim")
+
+    groups = ["vacancies", "applications", "profile", "reference"]
+    if args.kind:
+        groups = [args.kind]
+
+    alive: list[str] = []
+    rows_out: list[dict[str, Any]] = []
+
+    for kind in groups:
+        endpoints = [e for e in by_kind(kind)
+                     if not (e.auth == "required" and session.is_empty and args.public_only)]
+        if not endpoints:
+            continue
+        say(f"\n=== {kind.upper()} ===", "bold")
+        for endpoint in endpoints:
+            if "{vacancy_id}" in endpoint.url:
+                say(f"  ~  {endpoint.url}\n     (butuh id lowongan - dilewati)", "dim")
+                continue
+            url, params = endpoint.build()
+            result = client.probe(url, params)
+            result["key"] = endpoint.key
+            result["confidence"] = endpoint.confidence
+            rows_out.append(result)
+
+            if result["ok"]:
+                detail = f"{result['items']} item"
+                if result["total"]:
+                    detail += f", total {result['total']}"
+                if result["note"]:
+                    detail += f" | {result['note']}"
+                say(f"  OK  [{result['status']}] {url}\n      {detail}", "green")
+                alive.append(url)
+            else:
+                label = CONFIDENCE_LABEL.get(endpoint.confidence, endpoint.confidence)
+                reason = result["note"] or f"HTTP {result['status']}"
+                say(f"  --  [{result['status'] or '---'}] {url}\n"
+                    f"      {reason}  ({label})", "dim")
+
+    say("\n" + "-" * 66)
+    if alive:
+        say(f"{len(alive)} endpoint hidup:", "bold green")
+        for url in alive:
+            say(f"  * {url}")
+        say("\nPakai yang berisi lowongan sebagai sumber:", "dim")
+        say(f"  export MAGANGKU_BASE_URL=\"<base-url-nya>\"")
+    else:
+        say("Tidak ada endpoint yang merespons.", "bold yellow")
+        say("Kemungkinan: (a) Cloudflare memblokir jaringan Anda, "
+            "(b) semua butuh login - isi sesi lewat `magangku session help`, atau\n"
+            "(c) Kemnaker mengubah lagi API-nya.\n"
+            "MagangKu tetap jalan penuh dengan `--source fixtures`.", "dim")
+
+    if args.json:
+        path = Path(args.json)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(rows_out, ensure_ascii=False, indent=2), encoding="utf-8")
+        say(f"\nHasil lengkap -> {path}", "cyan")
+    return 0
+
+
 def cmd_session(args: argparse.Namespace) -> int:
     """Inspect / capture the local Kemnaker session. Never prints raw tokens."""
     if args.action == "help":
@@ -873,6 +953,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dump", action="store_true",
                    help="tampilkan struktur payload untuk diagnosis")
     p.set_defaults(func=cmd_sync)
+
+    p = sub.add_parser("probe", help="uji semua endpoint Kemnaker dari mesin Anda")
+    p.add_argument("--kind", choices=["vacancies", "applications", "profile", "reference"],
+                   help="uji satu kategori saja")
+    p.add_argument("--public-only", action="store_true",
+                   help="lewati endpoint yang butuh login")
+    p.add_argument("--timeout", type=float, default=15.0, help="detik per endpoint")
+    p.add_argument("--json", help="simpan hasil lengkap ke berkas JSON")
+    p.set_defaults(func=cmd_probe)
 
     p = sub.add_parser("provinces", help="daftar kode provinsi")
     p.set_defaults(func=cmd_provinces)
