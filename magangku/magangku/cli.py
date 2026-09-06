@@ -30,6 +30,13 @@ from .models import Vacancy
 from .notify import dispatch
 from .profile import Profile, default_profile_path
 from .report import VERDICT_LABEL, export_all
+from .session import HELP_TEXT, PROFILE_ENDPOINTS, Session, SessionClient, redact
+from .sync import (
+    apply_to_profile,
+    load_profile_dict,
+    map_kemnaker_profile,
+    write_profile_dict,
+)
 from .scraper import (
     MagangHubScraper,
     ScrapeError,
@@ -598,6 +605,148 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_session(args: argparse.Namespace) -> int:
+    """Inspect / capture the local Kemnaker session. Never prints raw tokens."""
+    if args.action == "help":
+        say(HELP_TEXT)
+        return 0
+
+    if args.action == "capture":
+        from .session import capture_via_browser
+
+        try:
+            session = capture_via_browser()
+        except RuntimeError as exc:
+            err(str(exc))
+            return 1
+        if session.is_empty:
+            err("Tidak ada cookie yang terbaca. Pastikan Anda benar-benar login.")
+            return 1
+        path = session.save()
+        ok(f"Sesi tersimpan di {path.name} (permission 0600, sudah di .gitignore)")
+        say(f"   {session.summary()['cookie_count']} cookie, "
+            f"token: {'ada' if session.summary()['has_access_token'] else 'tidak ada'}")
+        return 0
+
+    # status
+    session = Session.load()
+    say("\n=== Status Sesi MagangHub ===\n", "bold cyan")
+    if session.is_empty:
+        warn("Belum ada sesi tersimpan.")
+        say("\nItu wajar - MagangKu tetap berfungsi penuh tanpa login "
+            "(scrape lowongan bersifat publik).")
+        say("Sesi hanya dibutuhkan untuk menarik profil pribadi Anda.")
+        say("\nJalankan `magangku session help` untuk cara mengisinya dengan aman.")
+        return 0
+
+    info = session.summary()
+    ok(f"Sumber        : {info['source']}")
+    say(f"Jumlah cookie : {info['cookie_count']}")
+    say(f"Nama cookie   : {', '.join(info['cookie_names']) or '-'}")
+    say(f"Access token  : {info['token_preview'] or '(tidak ditemukan)'}")
+    say("\n(Nilai token sengaja tidak ditampilkan penuh.)", "dim")
+
+    if args.check:
+        say("\nMenguji endpoint profil...")
+        _, url, log = SessionClient(session).discover_profile()
+        for line in log:
+            say(f"   {redact(line)}", "dim")
+        if url:
+            ok(f"Endpoint yang berhasil: {url}")
+        else:
+            warn("Tidak ada endpoint profil yang merespons.")
+            say("Gunakan cara ekspor manual: `magangku sync --from-file profil.json`")
+    return 0
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    """Import the user's real Kemnaker profile into profile.yml."""
+    payload: Any = None
+    origin = ""
+
+    if args.from_file:
+        path = Path(args.from_file)
+        if not path.exists():
+            err(f"Berkas tidak ditemukan: {path}")
+            return 1
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            err(f"JSON tidak valid: {exc}")
+            say("Pastikan Anda menyalin seluruh isi respons (mulai dari '{' ).")
+            return 1
+        origin = str(path)
+    else:
+        session = Session.load()
+        if session.is_empty:
+            err("Belum ada sesi tersimpan.")
+            say("\nDua pilihan:")
+            say("  1. Ekspor JSON profil dari DevTools, lalu:")
+            say("     magangku sync --from-file profil.json     [paling aman]")
+            say("  2. Isi MAGANGHUB_COOKIE di .env, lalu ulangi `magangku sync --auto`")
+            say("\nDetail: magangku session help")
+            return 1
+
+        endpoints = (args.endpoint,) if args.endpoint else PROFILE_ENDPOINTS
+        say("Mencari endpoint profil...")
+        payload, origin, log = SessionClient(session).discover_profile(endpoints)
+        for line in log:
+            say(f"   {redact(line)}", "dim")
+        if payload is None:
+            err("Tidak ada endpoint profil yang bisa diakses.")
+            say("\nKemungkinan penyebab: sesi kedaluwarsa, Cloudflare memblokir, "
+                "atau endpoint berubah.")
+            say("Jalur yang selalu berhasil: `magangku sync --from-file profil.json`")
+            say("Caranya: magangku session help")
+            return 2
+
+    mapped = map_kemnaker_profile(payload)
+    found = mapped["_found"]
+
+    say("\n=== Data yang terbaca ===", "bold cyan")
+    say(f"Identitas : {', '.join(found['identity_fields']) or '(tidak ada)'}")
+    say(f"Jurusan   : {found['majors']}")
+    say(f"Keahlian  : {found['skills']}")
+    say(f"Provinsi  : {found['province'] or '-'}")
+
+    if not any([found["identity_fields"], found["majors"], found["skills"]]):
+        warn("\nTidak ada field yang dikenali dari payload ini.")
+        say("Kemungkinan Anda menyalin respons yang salah (bukan data profil).")
+        say("Cari permintaan yang isinya memuat nama & riwayat pendidikan Anda.")
+        if args.dump:
+            say("\nStruktur payload (untuk diagnosis):")
+            say(json.dumps(payload, ensure_ascii=False, indent=1)[:1500], "dim")
+        else:
+            say("\nTambahkan --dump untuk melihat struktur payload-nya.")
+        return 1
+
+    target = ROOT / "profile.yml"
+    base = load_profile_dict(target) or load_profile_dict(ROOT / "profile.example.yml")
+    updated, changes = apply_to_profile(base, mapped, overwrite=args.overwrite)
+
+    if not changes:
+        ok("\nProfil Anda sudah selaras - tidak ada yang perlu diubah.")
+        return 0
+
+    say("\n=== Perubahan ===", "bold cyan")
+    for change in changes:
+        say(f"   {change}")
+
+    if args.dry_run:
+        say("\n(--dry-run: tidak ada yang ditulis)", "yellow")
+        return 0
+
+    if target.exists():
+        backup = target.with_suffix(".yml.bak")
+        backup.write_text(target.read_text(encoding="utf-8"), encoding="utf-8")
+        say(f"\nCadangan disimpan: {backup.name}", "dim")
+
+    write_profile_dict(target, updated)
+    ok(f"profile.yml diperbarui dari {origin}")
+    say("\nLangkah berikutnya: magangku match --top 20")
+    return 0
+
+
 def cmd_provinces(args: argparse.Namespace) -> int:
     provinces = load_provinces()
     if not provinces:
@@ -704,6 +853,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=8000)
     p.add_argument("--source", choices=["db", "fixtures"], default="db")
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("session", help="kelola sesi login MagangHub (lokal)")
+    p.add_argument("action", choices=["status", "help", "capture"], nargs="?",
+                   default="status")
+    p.add_argument("--check", action="store_true",
+                   help="uji endpoint profil dengan sesi saat ini")
+    p.set_defaults(func=cmd_session)
+
+    p = sub.add_parser("sync", help="tarik profil resmi Anda dari MagangHub")
+    p.add_argument("--from-file", metavar="FILE",
+                   help="JSON profil hasil ekspor DevTools (cara paling aman)")
+    p.add_argument("--auto", action="store_true",
+                   help="coba ambil otomatis memakai sesi tersimpan")
+    p.add_argument("--endpoint", help="paksa satu URL endpoint tertentu")
+    p.add_argument("--overwrite", action="store_true",
+                   help="timpa nilai yang sudah Anda isi sendiri")
+    p.add_argument("--dry-run", action="store_true", help="tampilkan perubahan saja")
+    p.add_argument("--dump", action="store_true",
+                   help="tampilkan struktur payload untuk diagnosis")
+    p.set_defaults(func=cmd_sync)
 
     p = sub.add_parser("provinces", help="daftar kode provinsi")
     p.set_defaults(func=cmd_provinces)

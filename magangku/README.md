@@ -51,25 +51,34 @@ MagangHub — lalu memberi tahu persis apa yang perlu diperbaiki.
 
 ---
 
-## Mulai cepat (5 menit)
+## Mulai cepat — cukup satu perintah
+
+Dashboard adalah cara utama memakai MagangKu. Semua hal bisa dilakukan dari
+browser: isi profil, impor data dari MagangHub, ambil lowongan, lihat skor,
+sampai menyalin surat lamaran.
 
 ```bash
-# 1. Buat profil — otomatis diisi dari CV Anda bila ada
-python -m magangku.cli profile init --cv cv.txt
-#    (belum punya cv.txt? cukup: profile init, lalu edit profile.yml manual)
+python -m magangku.cli serve        # buka http://localhost:8000
+```
 
-# 2. Ambil data lowongan
-python -m magangku.cli scrape                      # dari server Kemnaker
-python -m magangku.cli scrape --source fixtures    # atau data contoh (offline)
+Pengguna baru langsung disambut panduan 3 langkah. Tidak perlu menyentuh
+terminal lagi setelah ini.
 
-# 3. Lihat yang paling cocok
+| Tab | Isinya |
+|-----|--------|
+| **Cari Lowongan** | Kartu terurut skor, filter langsung, detail + surat lamaran |
+| **Profil Saya** | Formulir lengkap, geser bobot penilaian, tempel CV, editor YAML |
+| **Hubungkan MagangHub** | Impor profil resmi Anda — aman, tanpa password |
+| **Lamaran** | Semua lamaran yang Anda tandai, ubah status di tempat |
+| **Bantuan** | Panduan keamanan & koneksi |
+
+### Kalau lebih suka terminal
+
+```bash
+python -m magangku.cli profile init --cv cv.txt   # profil dari CV
+python -m magangku.cli scrape --source fixtures   # atau tanpa flag = live
 python -m magangku.cli match --top 20 --explain 3
-
-# 4. Siapkan berkas lamaran untuk 5 teratas
 python -m magangku.cli apply --top 5
-
-# 5. Buka dashboard visual
-python -m magangku.cli serve                       # http://localhost:8000
 ```
 
 ---
@@ -121,6 +130,8 @@ memberi tahu penyebab terbanyaknya, bukan sekadar "tidak ada hasil".
 | `status` | Ringkasan semua lamaran Anda |
 | `watch` | Deteksi lowongan **baru** lalu kirim notifikasi |
 | `serve` | Dashboard web |
+| `session status \| help \| capture` | Kelola sesi login lokal (tidak pernah menampilkan token) |
+| `sync --from-file \| --auto` | Impor profil resmi Anda dari MagangHub |
 | `provinces` | Daftar kode provinsi untuk `--province` |
 
 Selalu ada `--help` di setiap subperintah.
@@ -166,19 +177,86 @@ Nilai yang sudah Anda tulis sendiri **tidak akan ditimpa**.
 
 ---
 
+## Menghubungkan dengan akun MagangHub / SIAPkerja Anda
+
+Tujuannya: agar penilaian memakai **data resmi Anda sendiri** (jurusan, jenjang,
+IPK, keahlian, domisili) — bukan tebakan.
+
+> ### MagangKu tidak akan pernah meminta password Anda
+>
+> Akun SIAPkerja terhubung dengan **NIK/Dukcapil** — itu identitas kependudukan,
+> bukan sekadar login biasa. Jangan pernah menyerahkannya ke alat otomatis mana
+> pun, termasuk yang ini. Semua cara di bawah berjalan **lokal** di komputer
+> Anda, dan MagangKu hanya boleh menghubungi domain `kemnaker.go.id`
+> (dikunci di kode, ada tesnya).
+
+### Cara 1 — Tempel JSON profil (paling aman, selalu berhasil)
+
+Tidak ada token yang berpindah tangan sama sekali.
+
+1. Login ke MagangHub, buka halaman profil Anda
+2. **F12** → tab **Network** → muat ulang (F5)
+3. Cari permintaan XHR/fetch yang isinya data profil Anda
+4. Klik kanan → **Copy** → **Copy response**
+5. Tempel di tab **Hubungkan MagangHub**, klik *Pratinjau perubahan*
+
+Atau lewat terminal:
+
+```bash
+magangku sync --from-file profil.json --dry-run   # lihat dulu
+magangku sync --from-file profil.json             # baru terapkan
+```
+
+### Cara 2 — Cookie sesi
+
+Isi `MAGANGHUB_COOKIE` di `.env` (sudah di `.gitignore`), lalu:
+
+```bash
+magangku session status --check    # uji tanpa menampilkan token
+magangku sync --auto
+```
+
+### Cara 3 — Login lewat browser sendiri
+
+```bash
+pip install playwright && playwright install chromium
+magangku session capture
+```
+
+Browser asli terbuka, **Anda** yang mengetik password di halaman resmi Kemnaker.
+MagangKu hanya membaca cookie hasilnya.
+
+**Yang penting soal impor:** nilai yang sudah Anda isi sendiri **tidak akan
+ditimpa** — data resmi diperlakukan sebagai saran. Pakai `--overwrite` bila
+memang ingin menimpa. Cadangan otomatis disimpan sebagai `profile.yml.bak`.
+
+Parser-nya mengenali banyak variasi nama field (SIAPkerja, MagangHub, Monev;
+Indonesia maupun Inggris), memilih **pendidikan tertinggi** bila ada beberapa,
+dan tetap aman bila strukturnya tak dikenali.
+
+> **Catatan jujur soal endpoint otomatis.** Hanya `monev.../api/users/me` yang
+> bentuk responsnya sudah terkonfirmasi dari proyek komunitas. Endpoint profil
+> lainnya adalah tebakan berdasarkan pola URL Kemnaker dan **belum
+> terverifikasi** — Kemnaker tidak menerbitkan dokumentasi API publik.
+> `sync --auto` mencoba satu per satu lalu melaporkan hasilnya. Karena itu
+> **Cara 1 selalu jadi jalur utama yang direkomendasikan**: ia bekerja apa pun
+> bentuk endpoint-nya.
+
+---
+
 ## Dashboard web
 
 ```bash
 python -m magangku.cli serve            # http://localhost:8000
 ```
 
-Kartu lowongan terurut skor, filter langsung (teks, skor minimum, kategori,
-provinsi, pemerintah/swasta), dan panel detail berisi rincian skor, deskripsi
-lengkap, **surat lamaran siap salin**, serta checklist pra-kirim. Tombol
-*Simpan* / *Tandai sudah dilamar* menyimpan status ke database.
+Lima tab: **Cari Lowongan**, **Profil Saya**, **Hubungkan MagangHub**,
+**Lamaran**, **Bantuan**. Pengguna baru otomatis mendapat panduan 3 langkah.
 
-Tanpa build step, tanpa CDN — HTML/CSS/JS menyatu dalam satu file dan jalan
-sepenuhnya offline.
+Semua bisa dari browser — mengisi profil, menggeser bobot penilaian, menempel
+CV, mengambil data lowongan, membaca rincian skor, menyalin surat lamaran, dan
+melacak status lamaran. Tanpa build step, tanpa CDN: HTML/CSS/JS menyatu dalam
+satu berkas dan jalan sepenuhnya offline.
 
 ---
 
@@ -245,10 +323,12 @@ magangku/
 │   ├── letter.py      # surat lamaran + checklist
 │   ├── report.py      # ekspor CSV / JSON / Markdown / HTML
 │   ├── notify.py      # console / ntfy / Telegram
-│   ├── web.py         # dashboard FastAPI
+│   ├── session.py     # sesi lokal + redaksi token + kunci domain
+│   ├── sync.py        # profil Kemnaker -> profile.yml
+│   ├── web.py         # dashboard FastAPI (antarmuka utama)
 │   └── cli.py         # antarmuka baris perintah
 ├── data/fixtures/     # 120 lowongan contoh (offline)
-├── tests/             # 45 tes
+├── tests/             # 79 tes
 └── profile.example.yml
 ```
 
@@ -257,12 +337,14 @@ magangku/
 ## Tes
 
 ```bash
-python -m pytest tests/ -q      # 45 passed
+python -m pytest tests/ -q      # 79 passed
 ```
 
 Mencakup normalisasi data rusak (null, HTML, JSON bersarang), logika skor &
-filter keras, deteksi perubahan di SQLite, parsing CV, dan escaping HTML pada
-laporan.
+filter keras, deteksi perubahan di SQLite, parsing CV, escaping HTML pada
+laporan, seluruh endpoint dashboard, serta **pengujian keamanan**: token selalu
+teredaksi di log/error, berkas sesi ber-permission 0600, dan permintaan ke
+domain non-Kemnaker ditolak.
 
 ---
 

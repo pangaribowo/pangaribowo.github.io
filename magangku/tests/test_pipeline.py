@@ -374,3 +374,228 @@ def test_html_report_escapes_markup(tmp_path, profile):
     from magangku.report import to_html
     html = to_html([result], tmp_path / "r.html").read_text(encoding="utf-8")
     assert "<script>alert(1)</script>" not in html
+
+
+# --------------------------------------------------------------------------- #
+# Session security (modul session.py)
+# --------------------------------------------------------------------------- #
+from magangku.session import Session, is_allowed, redact  # noqa: E402
+from magangku.sync import apply_to_profile, map_kemnaker_profile  # noqa: E402
+
+
+@pytest.mark.parametrize("raw", [
+    "Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.abcdefghijklmnop",
+    "accessToken=eyJhbGciOiJIUzI1NiJ9abcdefghij",
+    'token: "supersecretvalue12345"',
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9",
+])
+def test_redact_masks_credentials(raw):
+    out = redact(raw)
+    assert "REDACTED" in out
+    assert "eyJhbGciOiJIUzI1NiJ9.abcdefghijklmnop" not in out
+    assert "supersecretvalue12345" not in out
+
+
+def test_redact_leaves_ordinary_text_alone():
+    assert redact("tidak ada rahasia di sini") == "tidak ada rahasia di sini"
+
+
+@pytest.mark.parametrize("url,allowed", [
+    ("https://maganghub.kemnaker.go.id/be/v1/api/x", True),
+    ("https://monev.maganghub.kemnaker.go.id/api/users/me", True),
+    ("https://account.kemnaker.go.id/api/users/me", True),
+    ("https://evil.com/steal", False),
+    ("https://kemnaker.go.id.evil.com/x", False),
+    ("http://localhost:9000/x", False),
+])
+def test_only_kemnaker_domains_allowed(url, allowed):
+    assert is_allowed(url) is allowed
+
+
+def test_session_summary_never_leaks_full_token():
+    s = Session({"accessToken": "abcdefghijklmnopqrstuvwxyz123456"}, "test")
+    summary = s.summary()
+    assert "abcdefghijklmnopqrstuvwxyz123456" not in json.dumps(summary)
+    assert summary["has_access_token"] is True
+
+
+def test_session_file_is_owner_only(tmp_path):
+    path = Session({"accessToken": "x" * 20}, "test").save(tmp_path / "s.json")
+    assert oct(path.stat().st_mode)[-3:] == "600"
+
+
+def test_session_reads_playwright_cookie_array(tmp_path):
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps([{"name": "accessToken", "value": "tok123456"},
+                             {"name": "other", "value": "v"}]), encoding="utf-8")
+    s = Session.from_file(p)
+    assert s.token == "tok123456" and len(s.cookies) == 2
+
+
+def test_empty_session_client_refuses_politely():
+    from magangku.session import SessionClient
+
+    ok_, payload, msg = SessionClient(Session({}, "kosong")).get_json(
+        "https://maganghub.kemnaker.go.id/be/v1/api/profile")
+    assert ok_ is False and payload is None and "sesi" in msg.casefold()
+
+
+def test_session_client_blocks_foreign_host():
+    from magangku.session import SessionClient
+
+    ok_, _, msg = SessionClient(Session({"a": "b"}, "t")).get_json("https://evil.com/x")
+    assert ok_ is False and "ditolak" in msg.casefold()
+
+
+# --------------------------------------------------------------------------- #
+# Kemnaker profile sync (modul sync.py)
+# --------------------------------------------------------------------------- #
+NESTED = {
+    "data": {
+        "nama_lengkap": "Bowo P", "email": "b@x.id", "no_hp": "0812000",
+        "nama_kabupaten": "KOTA YOGYAKARTA", "nama_provinsi": "DAERAH ISTIMEWA YOGYAKARTA",
+        "pendidikan": [
+            {"jenjang": "SMA", "nama_sekolah": "SMAN 1", "program_studi": "IPA"},
+            {"jenjang": "Sarjana", "nama_institusi": "UGM",
+             "program_studi": "Teknik Informatika", "ipk": "3.62"},
+        ],
+        "keahlian": [{"nama_keahlian": "Python"}, {"nama_keahlian": "SQL"}],
+    }
+}
+FLAT = {
+    "name": "Siti", "email": "s@x.id", "kota": "Kab. Sleman",
+    "jenjang_pendidikan": "Diploma III", "kampus": "Polines",
+    "jurusan": "Akuntansi", "gpa": "3.40", "skills": ["Excel", "SAP"],
+}
+
+
+def test_sync_picks_highest_education():
+    mapped = map_kemnaker_profile(NESTED)
+    assert mapped["identity"]["level"] == "Sarjana"        # not SMA
+    assert mapped["identity"]["university"] == "UGM"
+    assert mapped["majors"] == ["Teknik Informatika"]
+    assert mapped["identity"]["gpa"] == "3.62"
+
+
+def test_sync_handles_flat_payload():
+    mapped = map_kemnaker_profile(FLAT)
+    assert mapped["identity"]["level"] == "Diploma III"
+    assert mapped["majors"] == ["Akuntansi"]
+    assert set(mapped["skills"]) == {"Excel", "SAP"}
+
+
+def test_sync_survives_unknown_payload():
+    mapped = map_kemnaker_profile({"totally": {"unrelated": [1, 2, 3]}})
+    assert mapped["identity"] == {} and mapped["majors"] == [] and mapped["skills"] == []
+
+
+def test_sync_preserves_user_values_by_default():
+    base = {"identity": {"name": "Nama Saya Sendiri"}, "skills": ["kotlin"]}
+    out, changes = apply_to_profile(base, map_kemnaker_profile(NESTED))
+    assert out["identity"]["name"] == "Nama Saya Sendiri"
+    assert "kotlin" in out["skills"] and "Python" in out["skills"]
+    assert any("skills" in c for c in changes)
+
+
+def test_sync_overwrite_flag_replaces():
+    base = {"identity": {"name": "Lama"}, "skills": ["kotlin"]}
+    out, _ = apply_to_profile(base, map_kemnaker_profile(NESTED), overwrite=True)
+    assert out["identity"]["name"] == "Bowo P"
+    assert out["skills"] == ["Python", "SQL"]
+
+
+def test_sync_result_is_loadable_as_profile():
+    base = yaml_safe(ROOT / "profile.example.yml")
+    out, _ = apply_to_profile(base, map_kemnaker_profile(NESTED))
+    profile = Profile.from_dict(out)
+    assert profile.name == "Nama Lengkap Anda" or profile.name  # merge kept a name
+    assert profile.normalized_weights
+
+
+def yaml_safe(path):
+    import yaml as _y
+    return _y.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+# --------------------------------------------------------------------------- #
+# Web API
+# --------------------------------------------------------------------------- #
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    from starlette.testclient import TestClient
+
+    from magangku.web import create_app
+
+    monkeypatch.setenv("MAGANGKU_DB", str(tmp_path / "web.db"))
+    monkeypatch.setenv("MAGANGKU_SOURCE", "fixtures")
+    monkeypatch.setenv("MAGANGKU_PROFILE", str(ROOT / "profile.example.yml"))
+    return TestClient(create_app())
+
+
+def test_bootstrap_flags_example_profile(client):
+    d = client.get("/api/bootstrap").json()
+    assert d["ready"] and d["using_example"] and d["needs_onboarding"]
+
+
+def test_matches_endpoint_filters(client):
+    all_ = client.get("/api/matches?limit=500").json()
+    high = client.get("/api/matches?min_score=75&limit=500").json()
+    assert all_["count"] > 0
+    assert high["count"] <= all_["count"]
+    assert all(r["score"] >= 75 for r in high["results"])
+
+
+def test_vacancy_detail_includes_letter(client):
+    vid = client.get("/api/matches?limit=1").json()["results"][0]["id"]
+    d = client.get(f"/api/vacancy/{vid}").json()
+    assert d["letter"] and d["checklist"] and len(d["components"]) == 6
+
+
+def test_track_roundtrip(client):
+    vid = client.get("/api/matches?limit=1").json()["results"][0]["id"]
+    assert client.post(f"/api/track/{vid}?status=applied").json()["ok"]
+    apps = client.get("/api/applications").json()["applications"]
+    assert any(a["vacancy_id"] == vid and a["status"] == "applied" for a in apps)
+
+
+def test_track_rejects_bad_status(client):
+    vid = client.get("/api/matches?limit=1").json()["results"][0]["id"]
+    assert client.post(f"/api/track/{vid}?status=nonsense").status_code == 400
+
+
+def test_sync_endpoint_dry_run_changes_nothing(client):
+    d = client.post("/api/sync", json={"json": NESTED, "dry_run": True}).json()
+    assert d["applied"] is False and d["found"]["majors"] == 1
+
+
+def test_sync_endpoint_rejects_unrecognised_payload(client):
+    r = client.post("/api/sync", json={"json": {"foo": "bar"}})
+    assert r.status_code == 422
+
+
+def test_sync_endpoint_rejects_bad_json_string(client):
+    assert client.post("/api/sync", json={"json": "{not json"}).status_code == 400
+
+
+def test_session_endpoint_reports_disconnected(client, monkeypatch):
+    monkeypatch.delenv("MAGANGHUB_COOKIE", raising=False)
+    d = client.get("/api/session").json()
+    assert "help" in d and "password" in d["help"].casefold()
+
+
+def test_export_endpoints(client):
+    assert "text/csv" in client.get("/api/export/csv").headers["content-type"]
+    assert client.get("/api/export/json").json()["count"] >= 0
+    assert "<html" in client.get("/api/export/html").text.lower()
+    assert client.get("/api/export/bogus").status_code == 404
+
+
+def test_cv_endpoint_parses_without_applying(client):
+    d = client.post("/api/profile/from-cv",
+                    json={"text": CV_TEXT, "apply": False}).json()
+    assert d["parsed"]["identity"]["name"] == "Budi Santoso"
+    assert d["applied"] is False
+
+
+def test_cv_endpoint_rejects_short_text(client):
+    assert client.post("/api/profile/from-cv", json={"text": "hai"}).status_code == 400

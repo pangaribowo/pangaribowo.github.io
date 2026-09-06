@@ -23,6 +23,7 @@ out/
 # JANGAN commit cookie/sesi login
 cookies.json
 session.json
+profile.yml.bak
 storage_state.json
 
 # OS / editor
